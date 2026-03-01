@@ -1,0 +1,1022 @@
+openapi: 3.0.3
+info:
+  title: StakeLedger API
+  version: 1.0.0
+  description: API para gestion de banks, apuestas, metas y recomendaciones.
+servers:
+  - url: http://localhost:3000
+    description: Development
+  - url: https://staging.example.com
+    description: Staging
+  - url: https://api.example.com
+    description: Production
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              password: StrongPass1
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/auth/reset-password:
+    post:
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Reset email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/banks:
+    get:
+      summary: List banks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bank list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create bank
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankCreateRequest'
+      responses:
+        '201':
+          description: Bank created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/banks/{bankId}:
+    get:
+      summary: Get bank details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BankId'
+      responses:
+        '200':
+          description: Bank details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update bank
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BankId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankUpdateRequest'
+      responses:
+        '200':
+          description: Bank updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankResponse'
+
+  /api/banks/{bankId}/transfer:
+    post:
+      summary: Transfer between banks
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BankId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: Transfer completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/transactions:
+    post:
+      summary: Create deposit or withdraw
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+
+  /api/bets:
+    get:
+      summary: List bets
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: bankId
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetListResponse'
+    post:
+      summary: Create bet ticket
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BetCreateRequest'
+      responses:
+        '201':
+          description: Bet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetResponse'
+
+  /api/bets/{betId}:
+    get:
+      summary: Get bet details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BetId'
+      responses:
+        '200':
+          description: Bet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/bets/{betId}/settle:
+    post:
+      summary: Settle bet
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BetSettleRequest'
+      responses:
+        '200':
+          description: Bet settled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetResponse'
+
+  /api/bets/{betId}/cashout:
+    post:
+      summary: Cashout partial
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BetCashoutRequest'
+      responses:
+        '200':
+          description: Cashout applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetCashoutResponse'
+
+  /api/catalog/teams:
+    get:
+      summary: Search teams
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Team results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogListResponse'
+
+  /api/catalog/competitions:
+    get:
+      summary: Search competitions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Competition results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogListResponse'
+
+  /api/catalog/manual:
+    post:
+      summary: Create manual catalog entry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogManualRequest'
+      responses:
+        '201':
+          description: Catalog item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogItemResponse'
+
+  /api/goals:
+    get:
+      summary: List goals
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Goal list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalListResponse'
+    post:
+      summary: Create goal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalCreateRequest'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalResponse'
+
+  /api/goals/{goalId}:
+    get:
+      summary: Get goal details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: Goal details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalResponse'
+
+  /api/goals/{goalId}/recalculate:
+    post:
+      summary: Recalculate goal
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: Goal recalculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalResponse'
+
+  /api/goals/{goalId}/close:
+    post:
+      summary: Close goal
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      responses:
+        '200':
+          description: Goal closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/recommendations:
+    get:
+      summary: List recommendations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [pre, live]
+      responses:
+        '200':
+          description: Recommendation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationListResponse'
+    post:
+      summary: Create recommendation (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationCreateRequest'
+      responses:
+        '201':
+          description: Recommendation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+
+  /api/recommendations/{recommendationId}/follow:
+    post:
+      summary: Follow recommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RecommendationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationFollowRequest'
+      responses:
+        '200':
+          description: Prefilled bet payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrefillBetResponse'
+
+  /api/metrics/overview:
+    get:
+      summary: Get metrics overview
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: bankId
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metrics summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    BankId:
+      in: path
+      name: bankId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BetId:
+      in: path
+      name: betId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GoalId:
+      in: path
+      name: goalId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RecommendationId:
+      in: path
+      name: recommendationId
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+      required: [success, error]
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required: [email, password]
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required: [email, password]
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        userId:
+          type: string
+          format: uuid
+        accessToken:
+          type: string
+      required: [success, userId, accessToken]
+
+    BankCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        currency:
+          type: string
+          example: EUR
+        initialCash:
+          type: number
+          format: float
+        initialBonus:
+          type: number
+          format: float
+        initialFreebet:
+          type: number
+          format: float
+      required: [name, currency]
+
+    BankUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        isPrimary:
+          type: boolean
+
+    BankResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        bank:
+          $ref: '#/components/schemas/Bank'
+      required: [success, bank]
+
+    BankListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        banks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bank'
+      required: [success, banks]
+
+    Bank:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        currency:
+          type: string
+        balances:
+          type: object
+          properties:
+            cash:
+              type: number
+            bonus:
+              type: number
+            freebet:
+              type: number
+            operative:
+              type: number
+
+    TransferRequest:
+      type: object
+      properties:
+        toBankId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        pocketType:
+          type: string
+          enum: [cash, bonus, freebet]
+      required: [toBankId, amount, pocketType]
+
+    TransactionCreateRequest:
+      type: object
+      properties:
+        bankId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [deposit, withdraw]
+        amount:
+          type: number
+        method:
+          type: string
+      required: [bankId, type, amount]
+
+    TransactionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transactionId:
+          type: string
+          format: uuid
+        balance:
+          type: number
+      required: [success, transactionId]
+
+    BetCreateRequest:
+      type: object
+      properties:
+        bankId:
+          type: string
+          format: uuid
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BetLegInput'
+        odds:
+          type: number
+        stakeAmount:
+          type: number
+        stakeLevel:
+          type: number
+        funding:
+          type: object
+          properties:
+            cash:
+              type: number
+            bonus:
+              type: number
+            freebet:
+              type: number
+      required: [bankId, legs, odds]
+
+    BetLegInput:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        market:
+          type: string
+        selection:
+          type: string
+        odds:
+          type: number
+      required: [market, selection, odds]
+
+    BetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        bet:
+          $ref: '#/components/schemas/Bet'
+      required: [success, bet]
+
+    BetListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        bets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bet'
+
+    Bet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        stakeAmount:
+          type: number
+        stakeLevel:
+          type: number
+        odds:
+          type: number
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BetLeg'
+
+    BetLeg:
+      type: object
+      properties:
+        market:
+          type: string
+        selection:
+          type: string
+        odds:
+          type: number
+
+    BetSettleRequest:
+      type: object
+      properties:
+        result:
+          type: string
+          enum: [win, lose, void, half_win, half_loss]
+        settlementAmount:
+          type: number
+      required: [result]
+
+    BetCashoutRequest:
+      type: object
+      properties:
+        cashoutAmount:
+          type: number
+        remainingStake:
+          type: number
+      required: [cashoutAmount, remainingStake]
+
+    BetCashoutResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        closedBetId:
+          type: string
+          format: uuid
+        openBetId:
+          type: string
+          format: uuid
+
+    CatalogManualRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [team, competition]
+        rawText:
+          type: string
+        country:
+          type: string
+      required: [type, rawText]
+
+    CatalogItemResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        itemId:
+          type: string
+          format: uuid
+
+    CatalogListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+
+    GoalCreateRequest:
+      type: object
+      properties:
+        bankId:
+          type: string
+          format: uuid
+        baseAmount:
+          type: number
+        targetAmount:
+          type: number
+        deadline:
+          type: string
+          format: date
+        stakePreference:
+          type: number
+        strategy:
+          type: string
+          enum: [conservative, accelerated]
+      required: [bankId, baseAmount, targetAmount, deadline]
+
+    GoalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        goal:
+          $ref: '#/components/schemas/Goal'
+
+    GoalListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Goal'
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        baseAmount:
+          type: number
+        targetAmount:
+          type: number
+        deadline:
+          type: string
+          format: date
+        dailyProfit:
+          type: number
+        suggestedOdds:
+          type: number
+
+    RecommendationCreateRequest:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        market:
+          type: string
+        odds:
+          type: number
+        type:
+          type: string
+          enum: [pre, live]
+        icp:
+          type: integer
+      required: [eventId, market, odds, type, icp]
+
+    RecommendationFollowRequest:
+      type: object
+      properties:
+        bankId:
+          type: string
+          format: uuid
+      required: [bankId]
+
+    RecommendationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        recommendation:
+          $ref: '#/components/schemas/Recommendation'
+
+    RecommendationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        market:
+          type: string
+        odds:
+          type: number
+        icp:
+          type: integer
+
+    PrefillBetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        prefill:
+          type: object
+          properties:
+            eventId:
+              type: string
+              format: uuid
+            market:
+              type: string
+            odds:
+              type: number
+
+    MetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        metrics:
+          type: object
+          properties:
+            yieldCash:
+              type: number
+            yieldOperative:
+              type: number
+            winRate:
+              type: number
