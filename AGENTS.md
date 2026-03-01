@@ -30,6 +30,15 @@ Eres un asistente de desarrollo para un proyecto que sigue **Context Engineering
 
 ---
 
+## Modo unico colaborador (DEV + QA + TAE)
+
+- Se permite commitear directo en `main` cuando eres el unico colaborador
+- PR es opcional; se usa solo si quieres aislamiento o revision posterior
+- Antes del push, la IA debe mostrar un resumen basado en los commits locales pendientes
+- Mantener commits atomicos y la nomenclatura vigente del proyecto
+
+---
+
 ## Context Loading por Rol
 
 ### Si estás haciendo DESARROLLO (DEV)
