@@ -14,7 +14,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "skipLibCheck": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
