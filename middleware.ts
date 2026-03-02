@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 import { supabaseAnonKey, supabaseUrl } from '@/lib/config';
 
-const PROTECTED_ROUTES = ['/dashboard'];
+const PROTECTED_ROUTES: string[] = [];
 const AUTH_ROUTES = ['/login', '/signup'];
 
 interface CookieToSet {

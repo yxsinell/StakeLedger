@@ -1,19 +1,20 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 
 export function LogoutButton() {
   const { logout, loading } = useAuth();
 
   return (
-    <button
-      className="button secondary"
+    <Button
       data-testid="logout_button"
       disabled={loading}
       onClick={() => void logout()}
       type="button"
+      variant="secondary"
     >
       Salir
-    </button>
+    </Button>
   );
 }

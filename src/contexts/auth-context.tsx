@@ -1,12 +1,10 @@
 'use client';
 
 import type { Session, User } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
 
+import type { UserProfile } from '@/lib/types';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-
-type UserProfile = Database['public']['Tables']['users']['Row'];
 
 type AuthResult
   = | {
@@ -36,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(
@@ -84,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
 
     const init = async () => {
-      setLoading(true);
       const { data, error: sessionError } = await supabase.auth.getSession();
 
       if (!isMounted) { return; }
@@ -100,8 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await syncUserRecord(data.session.user);
         await loadProfile(data.session.user.id);
       }
-
-      setLoading(false);
     };
 
     void init();
@@ -132,22 +127,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
       setError(null);
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      setLoading(true);
 
-      if (loginError) {
-        setError(loginError.message);
-        return { ok: false, message: loginError.message };
+      try {
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (loginError) {
+          setError(loginError.message);
+          return { ok: false, message: loginError.message };
+        }
+
+        if (data.user) {
+          await syncUserRecord(data.user);
+          await loadProfile(data.user.id);
+        }
+
+        return { ok: true };
       }
-
-      if (data.user) {
-        await syncUserRecord(data.user);
-        await loadProfile(data.user.id);
+      finally {
+        setLoading(false);
       }
-
-      return { ok: true };
     },
     [supabase, loadProfile, syncUserRecord],
   );
@@ -155,42 +157,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
       setError(null);
-      const { data, error: signupError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      setLoading(true);
 
-      if (signupError) {
-        setError(signupError.message);
-        return { ok: false, message: signupError.message };
+      try {
+        const { data, error: signupError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signupError) {
+          setError(signupError.message);
+          return { ok: false, message: signupError.message };
+        }
+
+        if (data.session?.user) {
+          await syncUserRecord(data.session.user);
+          await loadProfile(data.session.user.id);
+          return { ok: true };
+        }
+
+        return {
+          ok: true,
+          message: 'Revisa tu correo para confirmar la cuenta y luego inicia sesion.',
+        };
       }
-
-      if (data.session?.user) {
-        await syncUserRecord(data.session.user);
-        await loadProfile(data.session.user.id);
-        return { ok: true };
+      finally {
+        setLoading(false);
       }
-
-      return {
-        ok: true,
-        message: 'Revisa tu correo para confirmar la cuenta y luego inicia sesion.',
-      };
     },
     [supabase, loadProfile, syncUserRecord],
   );
 
   const logout = useCallback(async () => {
     setError(null);
-    const { error: logoutError } = await supabase.auth.signOut();
+    setLoading(true);
 
-    if (logoutError) {
-      setError(logoutError.message);
-      return;
+    try {
+      const { error: logoutError } = await supabase.auth.signOut();
+
+      if (logoutError) {
+        setError(logoutError.message);
+        return;
+      }
+
+      setSession(null);
+      setUser(null);
+      setProfile(null);
     }
-
-    setSession(null);
-    setUser(null);
-    setProfile(null);
+    finally {
+      setLoading(false);
+    }
   }, [supabase]);
 
   const value: AuthContextValue = {
