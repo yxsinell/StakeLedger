@@ -1,12 +1,19 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "incremental": true,
     "target": "ES2022",
+    "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "resolveJsonModule": true,
     "types": ["bun-types", "node", "react", "react-dom"],
+    "allowJs": true,
     "strict": true,
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
@@ -14,13 +21,6 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "skipLibCheck": true,
-    "jsx": "preserve",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
-    "allowJs": true,
-    "incremental": true,
     "plugins": [
       {
         "name": "next"
