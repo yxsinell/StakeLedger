@@ -116,6 +116,17 @@ const colors = {
   reset: '\x1B[0m',
 };
 
+/**
+ * Crea un directorio solo si no existe.
+ * Evita errores EEXIST en algunos entornos.
+ * @param {string} dirPath
+ */
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
 /** @param {string} message - Título de sección */
 function logHeader(message) {
   console.log(`\n${colors.bold}${colors.cyan}${message}${colors.reset}`);
@@ -276,7 +287,7 @@ Ahora puedes ejecutar el script nuevamente:
  */
 function mergeDirectory(srcDir, destDir, prefix = '') {
   // Ensure destination exists
-  fs.mkdirSync(destDir, { recursive: true });
+  ensureDir(destDir);
 
   // Get all items from source
   const items = fs.readdirSync(srcDir, { withFileTypes: true });
@@ -449,7 +460,7 @@ async function showPhasesMenu() {
  * Parsea argumentos de línea de comandos.
  *
  * @param {string[]} args - Array de argumentos (process.argv.slice(2))
- * @returns {{commands: string[], phases: number[]|null, role: string|null, standalone: boolean, all: boolean, help: boolean}} Resultado del parseo
+ * @returns {{commands: string[], phases: number[]|null, role: string|null, standalone: boolean, all: boolean, help: boolean}}
  */
 function parseArgs(args) {
   const result = {
@@ -598,7 +609,7 @@ function createBackup(components) {
       new Date().toTimeString().split(' ')[0].replace(/:/g, '')}`;
   const backupDir = path.join('.backups', `update-${timestamp}`);
 
-  fs.mkdirSync(backupDir, { recursive: true });
+  ensureDir(backupDir);
 
   const backupMap = {
     prompts: { src: '.prompts', dest: '.prompts' },
@@ -616,7 +627,7 @@ function createBackup(components) {
     const mapping = backupMap[comp];
     if (mapping && fs.existsSync(mapping.src)) {
       const destPath = path.join(backupDir, mapping.dest);
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      ensureDir(path.dirname(destPath));
       fs.cpSync(mapping.src, destPath, { recursive: true });
     }
   }
@@ -737,7 +748,7 @@ function updatePrompts(phases, includeStandalone) {
   }
 
   // Ensure .prompts exists
-  fs.mkdirSync('.prompts', { recursive: true });
+  ensureDir('.prompts');
 
   // Check if this is a full update (all phases + standalone)
   const allPhaseNums = Object.keys(PHASE_CONFIG).map(Number);
@@ -813,7 +824,7 @@ function updateBooks(phases, includeStandalone) {
   }
 
   // Ensure .books exists
-  fs.mkdirSync('.books', { recursive: true });
+  ensureDir('.books');
 
   // Check if this is a full update (all phases + standalone)
   const allPhaseNums = Object.keys(PHASE_CONFIG).map(Number);
@@ -1048,7 +1059,7 @@ function selfUpdate() {
 
   if (currentContent !== templateContent) {
     logStep('Auto-actualizando update-template.js...');
-    fs.mkdirSync('scripts', { recursive: true });
+    ensureDir('scripts');
     fs.cpSync(templateScriptPath, currentScriptPath);
     logSuccess('update-template.js actualizado a la ultima version');
     return true;
