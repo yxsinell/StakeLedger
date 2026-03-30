@@ -34,7 +34,7 @@ Riesgo Máximo (Cap único):
 
 - El cálculo de stake se realizará siempre sobre el CASH disponible actual (descontando bank comprometido).
 
-- Fórmula base recomendada (lineal y transparente): Importe Recomendado = Cash_Disponible _ (Stake / 20) _ 0,40.
+- Fórmula base recomendada (lineal y transparente): Importe Recomendado = Cash*Disponible * (Stake / 20) \_ 0,40.
 
 Cálculo bidireccional: El usuario puede seleccionar el número de Stake (y el sistema calcula los euros a invertir) o escribir los euros (y el sistema calcula a qué número de Stake equivale, reflejándolo con un decimal).
 

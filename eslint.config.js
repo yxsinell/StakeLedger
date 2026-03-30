@@ -27,6 +27,8 @@ export default antfu({
     '.github/**',
     // Legacy CLI files (backup)
     'cli/legacy/**',
+    // Generated Supabase types
+    'src/types/supabase.ts',
   ],
 
   // Custom rules
