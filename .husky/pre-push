@@ -1,0 +1,2 @@
+# Full-repo gate before push. Uses only scripts available in StakeLedger.
+bun run repo:check

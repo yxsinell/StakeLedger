@@ -1,5 +1,7 @@
 # Actualizar Template - Guia de Uso (v4.0)
 
+> **Estado StakeLedger Fase 1:** esta guia describe el updater legacy `scripts/update-template.js` heredado de `ai-driven-project-starter`. No es el updater de `agentic-dev-boilerplate`, y no debe usarse para copiar `.context`, skills o features del nuevo template. Fase 1 adopta solo overlay minimo (`.agents/`, scripts `repo:*`, hook `pre-push`). Reemplazar/retirar este updater queda para una fase futura.
+
 Esta guia explica como usar el script `update-template.js` (v4.0) para mantener tu proyecto sincronizado con el template de UPEX.
 
 ---

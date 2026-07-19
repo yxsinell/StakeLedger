@@ -28,6 +28,8 @@
     "db:types": "bunx supabase gen types typescript --project-id ziqbjajprkoukezhgidr > src/types/supabase.ts",
     "jira:sync-fields": "bun run scripts/sync-jira-fields.ts",
     "jira:check": "bun run scripts/check-jira-setup.ts",
+    "repo:check": "bun run lint && bun run build && bun run typecheck",
+    "repo:fix": "bun run lint:fix && bun run build && bun run typecheck",
     "prepare": "husky"
   },
   "dependencies": {

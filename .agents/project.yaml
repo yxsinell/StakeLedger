@@ -1,0 +1,65 @@
+# Project configuration consumed by AI agents across tools.
+# Keep this file tool-agnostic: OpenCode, Claude Code, Cursor, Codex, Gemini, etc.
+
+project:
+  project_name: StakeLedger
+  project_key: SL
+  webapp_domain: null # TODO: fill when public/staging domain exists.
+
+backend:
+  backend_repo: .
+  backend_stack: Next.js App Router API routes + Supabase
+  backend_entry: src/app
+
+frontend:
+  frontend_repo: .
+  frontend_stack: Next.js 15 + React 19 + TypeScript + Tailwind CSS + Radix UI
+  frontend_entry: src
+  design_md_path: null # Optional. Set if a DESIGN.md contract is introduced.
+
+database:
+  db_type: Supabase PostgreSQL
+
+issue_tracker:
+  issue_tracker: Jira
+  issue_tracker_cli: null # TODO: fill if a project-level CLI becomes standard.
+  atlassian_url: https://yxsinell.atlassian.net
+
+testing:
+  default_env: local
+
+git_strategy:
+  strategy: solo-main
+  description: >
+    Single long-lived main branch for a solo-collaborator workflow. Commits may land
+    directly on main, but pushes to main require explicit user confirmation.
+  branches:
+    production: main
+    integration: null
+    ephemeral_pattern: null
+  protected: [main]
+  decisions:
+    promote_method: n/a
+    feature_merge: n/a
+    hotfix_policy: none
+  policy:
+    direct_push_to_protected: confirm
+    admin_bypass: true
+    require_pr_reviews: 0
+  branch_prefixes:
+    precedence: [feat, fix, refactor, test, docs, chore]
+    naming_with_key: '{prefix}/{ISSUE-KEY}-{kebab-slug}'
+    naming_without_key: '{prefix}/{kebab-slug}'
+  meta:
+    setup_version: 1
+    created: 2026-07-19
+
+environments:
+  local:
+    web_url: http://localhost:3000
+    api_url: http://localhost:3000/api
+    db_project_ref: ziqbjajprkoukezhgidr
+  staging:
+    web_url: null # TODO: fill when staging is provisioned.
+    api_url: null # TODO: fill when staging API URL is provisioned.
+    db_project_ref: null # TODO: fill when staging Supabase project is confirmed.
