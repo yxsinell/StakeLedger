@@ -21,10 +21,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "lint:agents": "bun run scripts/agents-lint.ts",
     "lint:fix": "eslint --fix .",
     "lint:next": "next lint",
     "typecheck": "tsc --noEmit",
     "db:types": "bunx supabase gen types typescript --project-id ziqbjajprkoukezhgidr > src/types/supabase.ts",
+    "jira:sync-fields": "bun run scripts/sync-jira-fields.ts",
+    "jira:check": "bun run scripts/check-jira-setup.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -53,6 +56,7 @@
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
+    "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
