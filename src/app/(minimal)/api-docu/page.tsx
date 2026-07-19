@@ -16,17 +16,18 @@ const isAllowedEnvironment = () => {
 };
 
 interface PageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     api?: string
-  }
+  }>
 }
 
-export default function ApiDocuPage({ searchParams }: PageProps) {
+export default async function ApiDocuPage({ searchParams }: PageProps) {
   if (!isAllowedEnvironment()) {
     notFound();
   }
 
-  const apiType = searchParams?.api ?? 'nextjs';
+  const resolvedSearchParams = await searchParams;
+  const apiType = resolvedSearchParams?.api ?? 'nextjs';
   const specUrl = apiType === 'supabase'
     ? `${supabaseUrl}/rest/v1/?apikey=${supabaseAnonKey}`
     : '/api/openapi';

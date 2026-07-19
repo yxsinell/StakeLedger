@@ -460,7 +460,7 @@ async function showPhasesMenu() {
  * Parsea argumentos de línea de comandos.
  *
  * @param {string[]} args - Array de argumentos (process.argv.slice(2))
- * @returns {{commands: string[], phases: number[]|null, role: string|null, standalone: boolean, all: boolean, help: boolean}}
+ * @returns {{commands: string[], phases: number[]|null, role: string|null, standalone: boolean, all: boolean, help: boolean}} Parsed CLI arguments.
  */
 function parseArgs(args) {
   const result = {

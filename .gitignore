@@ -1,5 +1,5 @@
 # ====================================
-# UPEX Project Starter - .gitignore
+# StakeLedger - .gitignore
 # ====================================
 
 # Dependencies
@@ -70,3 +70,5 @@ Thumbs.db
 .mcpservers.json
 opencode.json
 dbhub.toml
+.cursor/mcp.json
+.copilot/mcp.json
