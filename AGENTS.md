@@ -58,6 +58,18 @@ Tu trabajo es ayudar a implementar codigo, tests y documentacion siguiendo las e
 
 ---
 
+## Skills de Proyecto
+
+OpenCode descubre las skills versionadas en `.agents/skills/<nombre>/SKILL.md`.
+
+- Para implementar una story o bug, carga `stakeledger-sprint-development` antes de actuar.
+- Para TDD o tests unitarios, carga `stakeledger-unit-testing` antes de editar tests.
+- Las skills complementan estas reglas; `AGENTS.md`, `.agents/project.yaml` y la especificacion de la story prevalecen ante cualquier documento legacy.
+- Jira es evidencia viva: usa `acli` para consultar el proyecto `SL`; pide confirmacion explicita antes de crear, editar, transicionar o asignar issues/sprints.
+- La estrategia activa es `solo-main` desde `.agents/project.yaml`; no asumas `staging`, PR obligatorio o deploy automatico.
+
+---
+
 ## Context Loading por Rol
 
 ### Si estas haciendo DESARROLLO (DEV)

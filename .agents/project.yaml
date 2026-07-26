@@ -22,7 +22,7 @@ database:
 
 issue_tracker:
   issue_tracker: Jira
-  issue_tracker_cli: null # TODO: fill if a project-level CLI becomes standard.
+  issue_tracker_cli: acli
   atlassian_url: https://yxsinell.atlassian.net
 
 testing:
