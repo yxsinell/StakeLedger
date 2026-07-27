@@ -19,6 +19,7 @@ export const ErrorResponseSchema = z
   .object({
     error: z.string().openapi({ description: 'Error message' }),
     details: z.string().optional().openapi({ description: 'Additional error details' }),
+    field: z.string().optional().openapi({ description: 'Field that failed validation' }),
   })
   .openapi('ErrorResponse');
 

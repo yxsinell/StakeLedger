@@ -97,6 +97,10 @@ ${apiBaseUrl}
     ],
     tags: [
       {
+        name: 'Authentication',
+        description: 'BFF authentication endpoints backed by Supabase Auth',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
       },

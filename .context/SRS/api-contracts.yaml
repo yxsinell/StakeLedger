@@ -26,7 +26,7 @@ paths:
               password: StrongPass1
       responses:
         '201':
-          description: User created
+          description: Registration accepted. A confirmation email may be required.
           content:
             application/json:
               schema:
@@ -47,7 +47,7 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Login success
+          description: Login success. The web session is set through httpOnly cookies.
           content:
             application/json:
               schema:
@@ -56,6 +56,17 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+
+  /api/auth/logout:
+    post:
+      summary: Logout current user
+      responses:
+        '200':
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
 
   /api/auth/reset-password:
     post:
@@ -72,7 +83,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/AuthResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
@@ -561,16 +572,13 @@ components:
     ErrorResponse:
       type: object
       properties:
-        success:
-          type: boolean
         error:
-          type: object
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-      required: [success, error]
+          type: string
+        details:
+          type: string
+        field:
+          type: string
+      required: [error]
 
     RegisterRequest:
       type: object
@@ -607,12 +615,9 @@ components:
       properties:
         success:
           type: boolean
-        userId:
+        message:
           type: string
-          format: uuid
-        accessToken:
-          type: string
-      required: [success, userId, accessToken]
+      required: [success, message]
 
     BankCreateRequest:
       type: object
