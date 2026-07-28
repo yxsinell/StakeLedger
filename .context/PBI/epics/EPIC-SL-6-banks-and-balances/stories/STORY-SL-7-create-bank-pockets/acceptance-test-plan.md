@@ -268,16 +268,16 @@
 
 ---
 
-### Scenario 4: Montos iniciales en cero
+### Scenario 4: Rechazo por monto inicial en cero
 
 **Type:** Boundary
 **Priority:** Medium
 
 - **Given:** usuario autenticado
-- **When:** crea bank con initialCash=0, initialBonus=0, initialFreebet=0
+- **When:** crea bank con cualquier monto inicial igual a 0
 - **Then:**
-  - Bank creado, pockets en 0
-  - Status code: 201 Created
+  - Status code: 400 Bad Request
+  - No se crea bank, pockets ni transacciones
 
 ---
 
@@ -290,8 +290,8 @@
 - **Given:** usuario autenticado
 - **When:** crea bank con initialCash=0.005
 - **Then:**
-  - Comportamiento esperado depende de regla de precision
-  - **Note:** requiere confirmacion PO/Dev
+  - Status code: 400 Bad Request
+  - No se crea bank, pockets ni transacciones
 
 ---
 
@@ -319,17 +319,17 @@ Cubre validaciones clave, atomicidad de DB, y edge cases de montos/nombre.
 
 **Parametrized Tests Recommended:** ✅ Yes
 
-**Parametrized Test Group 1:** Montos iniciales validos
+**Parametrized Test Group 1:** Montos iniciales positivos validos
 
-- **Base Scenario:** creacion exitosa con montos >= 0
+- **Base Scenario:** creacion exitosa con montos > 0
 - **Parameters to Vary:** initialCash, initialBonus, initialFreebet, currency
 - **Test Data Sets:**
 
 | initialCash | initialBonus | initialFreebet | currency | Expected Result |
 | ----------- | ------------ | -------------- | -------- | --------------- |
-| 0           | 0            | 0              | EUR      | 201 Created     |
+| 1           | 1            | 1              | EUR      | 201 Created     |
 | 100         | 20           | 10             | EUR      | 201 Created     |
-| 50.5        | 0            | 0              | USD      | 201 Created     |
+| 50.5        | 1            | 1              | USD      | 201 Created     |
 
 **Total Tests from Parametrization:** 3
 **Benefit:** reduce duplicacion y mejora coverage de montos/currency
@@ -364,7 +364,7 @@ Cubre validaciones clave, atomicidad de DB, y edge cases de montos/nombre.
 - **Database:**
   - banks: nuevo registro con name="Bank Principal" y currency="EUR"
   - bank_pockets: 3 registros con balances 100/20/10
-  - transactions: 1 registro inicial asociado al bank
+  - transactions: 3 registros `initial_deposit`, uno por pocket
 
 ---
 
@@ -412,7 +412,7 @@ Cubre validaciones clave, atomicidad de DB, y edge cases de montos/nombre.
 
 ---
 
-#### Validar creacion con montos iniciales en cero
+#### Validar rechazo con monto inicial en cero
 
 **Related Scenario:** Scenario 4
 **Type:** Boundary
@@ -424,13 +424,13 @@ Cubre validaciones clave, atomicidad de DB, y edge cases de montos/nombre.
 
 **Test Steps:**
 
-1. POST /api/banks con initialCash=0, initialBonus=0, initialFreebet=0
+1. POST /api/banks con initialCash=0
 2. Verificar respuesta
 
 **Expected Result:**
 
-- 201 Created
-- pockets en 0
+- 400 Bad Request
+- Sin filas creadas
 
 ---
 

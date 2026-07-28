@@ -91,7 +91,7 @@ paths:
     get:
       summary: List banks
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       responses:
         '200':
           description: Bank list
@@ -104,7 +104,7 @@ paths:
     post:
       summary: Create bank
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -120,12 +120,16 @@ paths:
                 $ref: '#/components/schemas/BankResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /api/banks/{bankId}:
     get:
       summary: Get bank details
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/BankId'
       responses:
@@ -137,46 +141,6 @@ paths:
                 $ref: '#/components/schemas/BankResponse'
         '404':
           $ref: '#/components/responses/NotFound'
-    put:
-      summary: Update bank
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/BankId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BankUpdateRequest'
-      responses:
-        '200':
-          description: Bank updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BankResponse'
-
-  /api/banks/{bankId}/transfer:
-    post:
-      summary: Transfer between banks
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/BankId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TransferRequest'
-      responses:
-        '200':
-          description: Transfer completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
 
   /api/transactions:
     post:
@@ -504,6 +468,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sb-<project-ref>-auth-token
 
   parameters:
     BankId:
@@ -624,27 +592,24 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 100
         currency:
           type: string
-          example: EUR
+          enum: [EUR, USD, ARS]
         initialCash:
           type: number
-          format: float
+          minimum: 0.01
+          multipleOf: 0.01
         initialBonus:
           type: number
-          format: float
+          minimum: 0.01
+          multipleOf: 0.01
         initialFreebet:
           type: number
-          format: float
-      required: [name, currency]
-
-    BankUpdateRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        isPrimary:
-          type: boolean
+          minimum: 0.01
+          multipleOf: 0.01
+      required: [name, currency, initialCash, initialBonus, initialFreebet]
 
     BankResponse:
       type: object
@@ -687,19 +652,8 @@ components:
               type: number
             operative:
               type: number
-
-    TransferRequest:
-      type: object
-      properties:
-        toBankId:
-          type: string
-          format: uuid
-        amount:
-          type: number
-        pocketType:
-          type: string
-          enum: [cash, bonus, freebet]
-      required: [toBankId, amount, pocketType]
+          required: [cash, bonus, freebet, operative]
+      required: [id, name, currency, balances]
 
     TransactionCreateRequest:
       type: object

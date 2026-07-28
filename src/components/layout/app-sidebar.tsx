@@ -1,13 +1,8 @@
 'use client';
 
 import {
-  Activity,
   Banknote,
   LayoutDashboard,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  Ticket,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -42,42 +37,9 @@ const navItems = [
   },
   {
     title: 'Banks',
-    url: '/dashboard',
+    url: '/dashboard/banks',
     icon: Banknote,
     testId: 'banks_nav',
-  },
-  {
-    title: 'Tickets',
-    url: '/dashboard',
-    icon: Ticket,
-    testId: 'tickets_nav',
-  },
-  {
-    title: 'Metas',
-    url: '/dashboard',
-    icon: Target,
-    testId: 'goals_nav',
-  },
-  {
-    title: 'Feed',
-    url: '/dashboard',
-    icon: Sparkles,
-    testId: 'feed_nav',
-  },
-];
-
-const supportItems = [
-  {
-    title: 'Auditoria',
-    url: '/dashboard',
-    icon: ShieldCheck,
-    testId: 'audit_nav',
-  },
-  {
-    title: 'Riesgo',
-    url: '/dashboard',
-    icon: Activity,
-    testId: 'risk_nav',
   },
 ];
 
@@ -146,35 +108,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className={state === 'collapsed' ? 'sr-only' : ''}>
-            Protecciones
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu data-testid="support_nav">
-              {supportItems.map((item) => {
-                const isActive = pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.title}
-                      data-testid={item.testId}
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span className={state === 'collapsed' ? 'sr-only' : ''}>
-                          {item.title}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/60 p-3">

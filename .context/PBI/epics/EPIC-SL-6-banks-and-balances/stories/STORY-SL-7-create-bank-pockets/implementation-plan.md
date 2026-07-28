@@ -21,7 +21,7 @@
 ## Alcance
 
 - Crear bank con nombre, moneda y tres pockets `cash`, `bonus`, `freebet`.
-- Registrar ledger inicial si algun monto inicial es mayor a 0.
+- Registrar tres transacciones `initial_deposit`, una por cada pocket con monto inicial positivo.
 - Ejecutar bank+pockets+ledger en operacion atomica.
 - Mantener fuera de alcance: banks compartidos, proveedores externos, importacion.
 
@@ -39,7 +39,7 @@
 ## DB/RLS Necesarios
 
 - Definir fuente de migraciones antes de cambios DB; Fase 2A detecto ausencia de migrations locales.
-- Confirmar constraints: `amount >= 0`, `balance >= 0`, `currency` ISO 4217/lista permitida, `transactions.type` incluye `initial_deposit` o equivalente.
+- Confirmar constraints: `amount > 0` en transacciones iniciales, `balance >= 0`, currency `EUR|USD|ARS`, y `transactions.type` incluye `initial_deposit`.
 - Si Supabase REST no permite transaccion multi-step segura desde app con anon key, crear RPC o usar server-side transactional strategy aprobada.
 - RLS: owner puede insertar/leer sus `banks`, `bank_pockets`, `transactions`; otro usuario no.
 - Hardening: `(select auth.uid())` en policies y grants GraphQL segun advisors.
@@ -63,14 +63,14 @@
 
 - `name`: trim, min 1, max 100.
 - `currency`: ISO 4217 uppercase o lista aprobada (`EUR`, `USD`, `ARS` si se confirma).
-- Montos iniciales: number finite, >= 0, precision de 2 decimales pendiente de decision.
+- Montos iniciales: number finite, > 0, maximo dos decimales y rechazo sin redondeo.
 - Body JSON invalido -> validation error.
 
 ## Tests Minimos
 
 - Unit: schema rechaza name vacio, monto negativo y currency invalida.
 - API: create exitoso crea bank, 3 pockets y ledger inicial atomico.
-- API: montos todos cero crean bank y pockets sin saldo negativo.
+- API: montos cero, negativos o con mas de dos decimales no crean filas.
 - API/RLS: usuario no puede leer bank ajeno.
 - E2E: formulario crea bank y lista refleja pockets.
 

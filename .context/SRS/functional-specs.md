@@ -51,17 +51,17 @@
 
 - **Relacionado a:** EPIC-SL-02, US 2.1
 - **Input:** bank_name, currency, initial_cash, initial_bonus, initial_freebet
-- **Processing:** crear bank y pockets, registrar transaccion inicial
+- **Processing:** crear atomically bank y pockets, registrar una transaccion `initial_deposit` por cada pocket
 - **Output:** bank_id, saldos iniciales
-- **Validations:** bank_name requerido, montos >= 0
+- **Validations:** bank_name requerido y unico por usuario tras trim/case-insensitive; currency `EUR|USD|ARS`; cada monto inicial > 0 con maximo dos decimales sin redondeo
 
 ## FR-006: El sistema debe mostrar saldo operativo y desglose por bolsillo
 
 - **Relacionado a:** EPIC-SL-02, US 2.2
 - **Input:** bank_id
-- **Processing:** sumar cash/bonus/freebet y calcular saldo operativo
+- **Processing:** mostrar cash/bonus/freebet y calcular saldo operativo como cash disponible
 - **Output:** saldo_operativo, cash, bonus, freebet
-- **Validations:** bank pertenece al usuario
+- **Validations:** bank pertenece al usuario; bank ajeno o inexistente responde 404 generico
 
 ## FR-007: El sistema debe permitir transferencias entre banks del mismo usuario
 

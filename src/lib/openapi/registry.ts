@@ -101,6 +101,10 @@ ${apiBaseUrl}
         description: 'BFF authentication endpoints backed by Supabase Auth',
       },
       {
+        name: 'Banks',
+        description: 'Owner-scoped bank creation and balance endpoints',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
       },

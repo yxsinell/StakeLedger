@@ -62,8 +62,8 @@
 
 <!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
 
-- Saldo operativo calculado segun regla definida
-- Acceso restringido al owner
+- Saldo operativo = cash disponible
+- Acceso restringido al owner; bank ajeno o inexistente responde 404 generico
 
 ---
 

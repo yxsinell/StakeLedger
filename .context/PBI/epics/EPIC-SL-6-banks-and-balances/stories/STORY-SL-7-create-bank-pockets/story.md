@@ -62,8 +62,10 @@
 
 <!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
 
-- Montos iniciales >= 0
-- Nombre de bank es requerido
+- Cada monto inicial es > 0 con maximo dos decimales; se rechaza sin redondear
+- Nombre de bank requerido y unico por usuario tras trim y normalizacion case-insensitive
+- Currency permitida: EUR, USD, ARS
+- Siempre se crean pockets cash, bonus y freebet, con una transaccion `initial_deposit` por pocket
 
 ---
 

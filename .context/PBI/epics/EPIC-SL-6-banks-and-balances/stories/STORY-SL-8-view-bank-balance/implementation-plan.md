@@ -37,7 +37,7 @@
 ## DB/RLS Necesarios
 
 - No requiere tabla nueva si pockets guardan saldos actuales.
-- RLS debe denegar banks/pockets de otro usuario; API debe distinguir `404` inexistente vs `403` ajeno segun contrato aprobado.
+- RLS debe denegar banks/pockets de otro usuario; API responde `404` generico para bank inexistente o ajeno.
 - Considerar view/RPC de balance solo si evita duplicar formula o mejora atomicidad.
 - Hardening RLS y grants GraphQL segun advisors si hay migracion.
 
@@ -45,7 +45,7 @@
 
 - `GET /api/banks/{bankId}`.
 - Response: `{ success, bank: { id, name, currency, balances: { cash, bonus, freebet, operative } } }`.
-- Errors: `401` anon, `403` bank ajeno si se decide exponer permiso, `404` inexistente.
+- Errors: `401` anon, `404` generico para bank ajeno o inexistente.
 - Debe usar auth server helper y owner filter.
 
 ## UI Necesaria
@@ -65,7 +65,7 @@
 
 - Unit: formula de saldo operativo con combinaciones de pockets.
 - API: bank propio devuelve pockets y operative balance.
-- API: bank ajeno devuelve `403` o respuesta aprobada.
+- API: bank ajeno devuelve `404` generico.
 - API: bank inexistente devuelve `404`.
 - E2E: usuario abre detalle y ve cards con saldos correctos.
 
@@ -79,6 +79,6 @@
 
 ## Decisiones Abiertas
 
-- Definir formula exacta de saldo operativo: cash solo, cash+bonus, cash+bonus+freebet, y fondos bloqueados futuros.
-- Definir precision/rounding monetario.
-- Confirmar codigos/mensajes para `403` y `404`.
+- Saldo operativo = cash disponible.
+- Maximo dos decimales; rechazar sin redondeo.
+- Bank ajeno o inexistente responde `404` generico.

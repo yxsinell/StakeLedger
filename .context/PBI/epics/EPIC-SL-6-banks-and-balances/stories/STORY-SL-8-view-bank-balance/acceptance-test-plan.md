@@ -176,7 +176,7 @@
 
 - **Given:** usuario autenticado sin ownership
 - **When:** GET /api/banks/{bankId} ajeno
-- **Then:** 403 Forbidden + UI acceso denegado
+- **Then:** 404 Not Found generico + UI de bank no encontrado
 
 ---
 
@@ -256,7 +256,7 @@
 
 **Steps:** GET /api/banks/{bankId} ajeno
 
-**Expected Result:** 403 Forbidden, sin data
+**Expected Result:** 404 Not Found generico, sin data
 
 ---
 
@@ -294,12 +294,12 @@
 
 **Product Owner:**
 
-- [ ] Definir regla de saldo operativo y ejemplos
-- [ ] Confirmar precision/rounding
+- [x] Saldo operativo = cash disponible
+- [x] Maximo dos decimales; rechazar sin redondeo
 
 **Dev Lead:**
 
-- [ ] Confirmar codigos/mensajes para 403/404
+- [x] Bank ajeno o inexistente responde 404 generico
 
 ---
 

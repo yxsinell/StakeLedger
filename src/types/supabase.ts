@@ -975,6 +975,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_bank_with_pockets: {
+        Args: {
+          p_currency: string
+          p_initial_bonus: number
+          p_initial_cash: number
+          p_initial_freebet: number
+          p_name: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_catalog_editor: { Args: never; Returns: boolean }
     }
