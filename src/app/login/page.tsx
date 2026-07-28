@@ -15,13 +15,19 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
 
 function LoginForm() {
-  const { login, loading, error } = useAuth();
+  const { login, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') ?? '/dashboard';
+  const requestedRedirect = searchParams.get('redirect');
+  const redirectTo = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//')
+    ? requestedRedirect
+    : '/dashboard';
 
   useEffect(() => {
     const clearFields = () => {
@@ -38,13 +44,45 @@ function LoginForm() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
+    setFormMessage(null);
 
-    const result = await login(email, password);
+    const normalizedEmail = email.trim().toLowerCase();
+    const atIndex = normalizedEmail.indexOf('@');
+    const dotIndex = normalizedEmail.lastIndexOf('.');
+    const isEmailValid = normalizedEmail.length <= 254
+      && atIndex > 0
+      && atIndex === normalizedEmail.lastIndexOf('@')
+      && dotIndex > atIndex + 1
+      && dotIndex < normalizedEmail.length - 1
+      && !normalizedEmail.includes(' ');
+    const nextEmailError = !normalizedEmail
+      ? 'Introduce tu email.'
+      : !isEmailValid
+          ? 'Introduce un email válido.'
+          : null;
+    let nextPasswordError: string | null = null;
+
+    if (!password) {
+      nextPasswordError = 'Introduce tu contraseña.';
+    }
+    else if (password.length < 8) {
+      nextPasswordError = 'La contraseña debe tener al menos 8 caracteres.';
+    }
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
+
+    const result = await login(normalizedEmail, password);
     if (!result.ok) {
       setFormError(result.message);
       return;
     }
 
+    setFormMessage('Sesión iniciada. Redirigiendo al panel...');
     router.push(redirectTo);
   };
 
@@ -100,56 +138,76 @@ function LoginForm() {
             <form
               className="grid gap-4"
               data-testid="loginForm"
-              autoComplete="off"
+              noValidate
               onSubmit={event => void handleSubmit(event)}
             >
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                  aria-describedby={emailError ? 'login-email-error' : undefined}
+                  aria-invalid={Boolean(emailError)}
                   data-testid="email_input"
                   id="email"
-                  name="stakeledger-email"
-                  onChange={event => setEmail(event.target.value)}
+                  name="email"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setEmailError(null);
+                  }}
                   autoCapitalize="none"
                   autoCorrect="off"
-                  autoComplete="new-password"
+                  autoComplete="username"
                   spellCheck={false}
                   required
                   type="email"
                   value={email}
                 />
+                {emailError
+                  ? <p className="text-xs text-destructive" data-testid="email_error" id="login-email-error">{emailError}</p>
+                  : null}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
+                  aria-describedby={passwordError ? 'login-password-error' : undefined}
+                  aria-invalid={Boolean(passwordError)}
                   data-testid="password_input"
                   id="password"
-                  name="stakeledger-password"
-                  onChange={event => setPassword(event.target.value)}
-                  autoComplete="new-password"
+                  name="password"
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setPasswordError(null);
+                  }}
+                  autoComplete="current-password"
                   spellCheck={false}
                   required
                   type="password"
                   value={password}
                 />
+                {passwordError
+                  ? <p className="text-xs text-destructive" data-testid="password_error" id="login-password-error">{passwordError}</p>
+                  : null}
               </div>
               {formError
                 ? (
                     <div
                       className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
                       data-testid="form_error"
+                      aria-live="assertive"
+                      role="alert"
                     >
                       {formError}
                     </div>
                   )
                 : null}
-              {error
+              {formMessage
                 ? (
                     <div
-                      className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-                      data-testid="auth_error"
+                      aria-live="polite"
+                      className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground"
+                      data-testid="form_message"
+                      role="status"
                     >
-                      {error}
+                      {formMessage}
                     </div>
                   )
                 : null}
@@ -161,6 +219,13 @@ function LoginForm() {
                 {loading ? 'Cargando...' : 'Ingresar'}
               </Button>
             </form>
+            <div className="text-sm text-muted-foreground" data-testid="forgot_password_helper">
+              <Button asChild variant="link" className="px-0">
+                <Link data-testid="forgot_password_link" href="/forgot-password">
+                  ¿Has olvidado tu contraseña?
+                </Link>
+              </Button>
+            </div>
             <div className="text-sm text-muted-foreground" data-testid="signup_helper">
               No tienes cuenta?
               {' '}

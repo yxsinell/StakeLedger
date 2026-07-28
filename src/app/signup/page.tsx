@@ -15,9 +15,11 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function SignupPage() {
-  const { signup, loading, error } = useAuth();
+  const { signup, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const router = useRouter();
@@ -39,7 +41,43 @@ export default function SignupPage() {
     setFormError(null);
     setFormMessage(null);
 
-    const result = await signup(email, password);
+    const normalizedEmail = email.trim().toLowerCase();
+    const atIndex = normalizedEmail.indexOf('@');
+    const dotIndex = normalizedEmail.lastIndexOf('.');
+    const isEmailValid = normalizedEmail.length <= 254
+      && atIndex > 0
+      && atIndex === normalizedEmail.lastIndexOf('@')
+      && dotIndex > atIndex + 1
+      && dotIndex < normalizedEmail.length - 1
+      && !normalizedEmail.includes(' ');
+    const nextEmailError = !normalizedEmail
+      ? 'Introduce tu email.'
+      : !isEmailValid
+          ? 'Introduce un email válido.'
+          : null;
+    let nextPasswordError: string | null = null;
+
+    if (!password) {
+      nextPasswordError = 'Introduce una contraseña.';
+    }
+    else if (password.length < 8) {
+      nextPasswordError = 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    else if (!/[A-Z]/.test(password)) {
+      nextPasswordError = 'La contraseña debe incluir una letra mayúscula.';
+    }
+    else if (!/\d/.test(password)) {
+      nextPasswordError = 'La contraseña debe incluir un número.';
+    }
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+
+    if (nextEmailError || nextPasswordError) {
+      return;
+    }
+
+    const result = await signup(normalizedEmail, password);
     if (!result.ok) {
       setFormError(result.message);
       return;
@@ -64,44 +102,62 @@ export default function SignupPage() {
             <form
               className="grid gap-4"
               data-testid="signupForm"
-              autoComplete="off"
+              noValidate
               onSubmit={event => void handleSubmit(event)}
             >
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                  aria-describedby={emailError ? 'signup-email-error' : undefined}
+                  aria-invalid={Boolean(emailError)}
                   data-testid="email_input"
                   id="email"
-                  name="stakeledger-email"
-                  onChange={event => setEmail(event.target.value)}
+                  name="email"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setEmailError(null);
+                  }}
                   autoCapitalize="none"
                   autoCorrect="off"
-                  autoComplete="new-password"
+                  autoComplete="email"
                   spellCheck={false}
                   required
                   type="email"
                   value={email}
                 />
+                {emailError
+                  ? <p className="text-xs text-destructive" data-testid="email_error" id="signup-email-error">{emailError}</p>
+                  : null}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
+                  aria-describedby={passwordError ? 'signup-password-error' : undefined}
+                  aria-invalid={Boolean(passwordError)}
                   data-testid="password_input"
                   id="password"
-                  name="stakeledger-password"
-                  onChange={event => setPassword(event.target.value)}
+                  name="password"
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setPasswordError(null);
+                  }}
                   autoComplete="new-password"
                   spellCheck={false}
                   required
                   type="password"
                   value={password}
                 />
+                {passwordError
+                  ? <p className="text-xs text-destructive" data-testid="password_error" id="signup-password-error">{passwordError}</p>
+                  : null}
               </div>
               {formError
                 ? (
                     <div
                       className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
                       data-testid="form_error"
+                      aria-live="assertive"
+                      role="alert"
                     >
                       {formError}
                     </div>
@@ -112,18 +168,10 @@ export default function SignupPage() {
                     <div
                       className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground"
                       data-testid="form_message"
+                      aria-live="polite"
+                      role="status"
                     >
                       {formMessage}
-                    </div>
-                  )
-                : null}
-              {error
-                ? (
-                    <div
-                      className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-                      data-testid="auth_error"
-                    >
-                      {error}
                     </div>
                   )
                 : null}

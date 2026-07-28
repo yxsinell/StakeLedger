@@ -21,9 +21,9 @@ interface AuthContextValue {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  error: string | null
   login: (email: string, password: string) => Promise<AuthResult>
   signup: (email: string, password: string) => Promise<AuthResult>
+  resetPassword: (email: string) => Promise<AuthResult>
   logout: () => Promise<void>
 }
 
@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(
     async (userId: string) => {
@@ -46,9 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (profileError) {
-        if (profileError.code !== 'PGRST116') {
-          setError(profileError.message);
-        }
         setProfile(null);
         return;
       }
@@ -58,45 +54,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [supabase],
   );
 
-  const syncUserRecord = useCallback(
-    async (authUser: User) => {
-      if (!authUser.email) { return; }
+  const syncSession = useCallback(async () => {
+    const { data, error: sessionError } = await supabase.auth.getSession();
 
-      const { error: upsertError } = await supabase.from('users').upsert(
-        {
-          id: authUser.id,
-          email: authUser.email,
-          role: 'user',
-        },
-        { onConflict: 'id' },
-      );
+    if (sessionError) {
+      return false;
+    }
 
-      if (upsertError) {
-        setError(upsertError.message);
+    setSession(data.session);
+    setUser(data.session?.user ?? null);
+
+    if (data.session?.user) {
+      await loadProfile(data.session.user.id);
+      return true;
+    }
+
+    setProfile(null);
+    return false;
+  }, [loadProfile, supabase]);
+
+  const requestAuth = useCallback(async (path: string, body: Record<string, string>) => {
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null) as {
+        error?: string
+        message?: string
+      } | null;
+
+      if (!response.ok) {
+        return {
+          ok: false as const,
+          message: payload?.error ?? 'No se ha podido procesar la solicitud.',
+        };
       }
-    },
-    [supabase],
-  );
+
+      return { ok: true as const, message: payload?.message };
+    }
+    catch {
+      return {
+        ok: false as const,
+        message: 'No se ha podido conectar con el servicio. Inténtalo de nuevo.',
+      };
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const init = async () => {
-      const { data, error: sessionError } = await supabase.auth.getSession();
-
-      if (!isMounted) { return; }
-
-      if (sessionError) {
-        setError(sessionError.message);
-      }
-
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-
-      if (data.session?.user) {
-        await syncUserRecord(data.session.user);
-        await loadProfile(data.session.user.id);
-      }
+      await syncSession();
     };
 
     void init();
@@ -109,7 +119,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          await syncUserRecord(newSession.user);
           await loadProfile(newSession.user.id);
         }
         else {
@@ -122,28 +131,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [supabase, loadProfile, syncUserRecord]);
+  }, [supabase, loadProfile, syncSession]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      setError(null);
       setLoading(true);
 
       try {
-        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        const result = await requestAuth('/api/auth/login', {
           email,
           password,
         });
 
-        if (loginError) {
-          setError(loginError.message);
-          return { ok: false, message: loginError.message };
+        if (!result.ok) {
+          const message = 'Email o contraseña no válidos.';
+          return { ok: false, message };
         }
 
-        if (data.user) {
-          await syncUserRecord(data.user);
-          await loadProfile(data.user.id);
-        }
+        await syncSession();
 
         return { ok: true };
       }
@@ -151,52 +156,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    [supabase, loadProfile, syncUserRecord],
+    [requestAuth, syncSession],
   );
 
   const signup = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      setError(null);
       setLoading(true);
 
       try {
-        const { data, error: signupError } = await supabase.auth.signUp({
+        const result = await requestAuth('/api/auth/register', {
           email,
           password,
         });
 
-        if (signupError) {
-          setError(signupError.message);
-          return { ok: false, message: signupError.message };
+        if (!result.ok) {
+          const message = result.message === 'An account with this email already exists.'
+            ? 'Ya existe una cuenta con este email.'
+            : 'No se ha podido crear la cuenta. Inténtalo de nuevo.';
+          return { ok: false, message };
         }
 
-        if (data.session?.user) {
-          await syncUserRecord(data.session.user);
-          await loadProfile(data.session.user.id);
+        if (await syncSession()) {
           return { ok: true };
         }
 
         return {
           ok: true,
-          message: 'Revisa tu correo para confirmar la cuenta y luego inicia sesion.',
+          message: 'Revisa tu correo para confirmar la cuenta y luego inicia sesión.',
         };
       }
       finally {
         setLoading(false);
       }
     },
-    [supabase, loadProfile, syncUserRecord],
+    [requestAuth, syncSession],
+  );
+
+  const resetPassword = useCallback(
+    async (email: string): Promise<AuthResult> => {
+      setLoading(true);
+
+      try {
+        const result = await requestAuth('/api/auth/reset-password', { email });
+
+        if (!result.ok) {
+          const message = 'No se ha podido solicitar el restablecimiento. Inténtalo de nuevo.';
+          return { ok: false, message };
+        }
+
+        return {
+          ok: true,
+          message: 'Si existe una cuenta con ese email, recibirás un correo para restablecer tu contraseña.',
+        };
+      }
+      finally {
+        setLoading(false);
+      }
+    },
+    [requestAuth],
   );
 
   const logout = useCallback(async () => {
-    setError(null);
     setLoading(true);
 
     try {
-      const { error: logoutError } = await supabase.auth.signOut();
+      const result = await requestAuth('/api/auth/logout', {});
 
-      if (logoutError) {
-        setError(logoutError.message);
+      if (!result.ok) {
         return;
       }
 
@@ -207,16 +233,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [requestAuth]);
 
   const value: AuthContextValue = {
     session,
     user,
     profile,
     loading,
-    error,
     login,
     signup,
+    resetPassword,
     logout,
   };
 
