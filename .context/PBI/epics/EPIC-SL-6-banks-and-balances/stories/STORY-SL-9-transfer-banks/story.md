@@ -24,8 +24,8 @@
 ### In Scope
 
 - Transferencia entre banks del mismo usuario
-- Seleccion de pocket origen y destino
-- Registro de transaccion tipo transfer
+- Solo pocket cash y banks con la misma divisa
+- Registro de doble asiento `transfer_debit` y `transfer_credit`
 
 ### Out of Scope
 
@@ -64,6 +64,9 @@
 
 - Monto > 0
 - Banks deben pertenecer al mismo usuario
+- Banks origen y destino deben ser distintos y tener la misma divisa
+- Máximo dos decimales; rechazo sin redondeo
+- `Idempotency-Key` UUID es obligatorio; retry equivalente devuelve resultado original y reutilización con payload distinto devuelve 409
 
 ---
 
@@ -113,10 +116,11 @@
 ### Blocked By
 
 - SL-7 (crear bank)
+- SL-10 (movimientos cash implementados y verificados)
 
 ### Blocks
 
-- SL-10 (depositos/retiros) depende de ledger consistente
+- Tickets y metas que requieran reequilibrio entre banks
 
 ### Related Stories
 

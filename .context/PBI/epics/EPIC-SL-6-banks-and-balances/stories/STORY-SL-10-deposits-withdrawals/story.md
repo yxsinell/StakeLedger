@@ -64,6 +64,10 @@
 
 - Monto > 0
 - Retiro no supera cash disponible
+- Depósitos y retiros afectan exclusivamente el pocket cash
+- Métodos permitidos: bank_transfer, card, cash
+- Máximo dos decimales; rechazo sin redondeo
+- `Idempotency-Key` UUID obligatorio; retry equivalente devuelve resultado original y reutilización distinta devuelve 409
 
 ---
 
@@ -155,7 +159,7 @@ See: `.context/PBI/epics/EPIC-SL-6-banks-and-balances/stories/STORY-SL-10-deposi
 
 ## Notes
 
-- Definir metodos permitidos para depositos y retiros
+- Métodos permitidos: bank_transfer, card y cash; solo afectan cash.
 
 ---
 

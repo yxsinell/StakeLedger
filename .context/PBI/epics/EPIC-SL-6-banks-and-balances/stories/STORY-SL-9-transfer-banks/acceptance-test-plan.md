@@ -81,8 +81,7 @@
 
 **Critical Questions from Epic:**
 
-- Dev: La transferencia permite cambiar pocket destino o siempre es mismo pocketType? (⏳ Pending)
-- PO: Se permiten transferencias entre banks con distinta moneda? (⏳ Pending)
+- Transferencia solo cash entre banks propios de la misma divisa.
 
 **Test Strategy from Epic:** Unit, Integration, E2E, API
 
@@ -92,23 +91,7 @@
 
 ### Ambiguities Identified
 
-**Ambiguity 1:** Pocket destino vs pocketType unico
-
-- **Location:** Scope / API contract
-- **Question for Dev:** Se transfiere entre pockets distintos o siempre mismo pocketType?
-- **Impact on Testing:** afecta validaciones de payload y balances
-
-**Ambiguity 2:** Transferencias entre monedas
-
-- **Location:** Scope
-- **Question for PO:** Se permiten transferencias entre banks con distinta currency?
-- **Impact on Testing:** afecta reglas y validaciones de monto
-
-**Ambiguity 3:** Idempotencia
-
-- **Location:** Notes
-- **Question for Dev:** cual es la estrategia de idempotencia? (idempotency-key?)
-- **Impact on Testing:** no podemos validar retries
+**Reglas cerradas:** cash-only, misma divisa, banks distintos y cabecera `Idempotency-Key` UUID obligatoria. Retry equivalente devuelve el resultado original; payload distinto con la misma clave devuelve `409`.
 
 ---
 
@@ -147,7 +130,7 @@
 
 - [x] Missing idempotency rules
 - [x] Missing error codes/messages
-- [x] Missing pocket destino rule
+- [x] Regla cash-only definida
 
 ---
 
@@ -161,7 +144,7 @@
 - **Given:** usuario autenticado con bank A (cash=100) y bank B (cash=0)
 - **When:** POST /api/banks/{bankAId}/transfer con toBankId=bankBId, amount=50, pocketType=cash
 - **Then:**
-  - 200 OK
+  - 201 Created; 200 OK para retry idempotente
   - Bank A cash=50, Bank B cash=50
   - Ledger registra doble asiento
 
@@ -207,7 +190,7 @@
 
 - **Given:** transferencia enviada con idempotency key
 - **When:** reintenta la misma request
-- **Then:** no duplica asientos (comportamiento a confirmar)
+- **Then:** devuelve resultado original y no duplica asientos
 
 ---
 
@@ -234,8 +217,8 @@
 | amount | pocketType | Expected Result |
 | ------ | ---------- | --------------- |
 | 10     | cash       | success |
-| 10     | bonus      | success (si aplica) |
-| 10     | freebet    | success (si aplica) |
+| 10     | bonus      | error de validación |
+| 10     | freebet    | error de validación |
 | 0      | cash       | error |
 
 ---
@@ -253,15 +236,7 @@
 
 ## Action Required
 
-**Product Owner:**
-
-- [ ] Definir si se permiten transferencias entre monedas
-
-**Dev Lead:**
-
-- [ ] Definir pocket destino vs pocketType
-- [ ] Definir estrategia de idempotencia
-- [ ] Confirmar codigos/mensajes de error
+**Decisiones cerradas:** `400` entrada inválida, saldo insuficiente, mismo bank o distinta divisa; `401` sin sesión; `403` bank ajeno; `404` bank inexistente; `409` reutilización idempotente conflictiva.
 
 ---
 

@@ -64,6 +64,10 @@
 
 - Solo admin puede asignar roles
 - Roles validos: admin, editor, user
+- user: opera exclusivamente recursos propios y lee catálogo/recomendaciones publicadas.
+- editor: añade y mantiene catálogo y recomendaciones; no gestiona roles ni saldo ajeno.
+- admin: gestiona roles, catálogo y recomendaciones; no opera saldo ajeno.
+- El cambio de rol se aplica en la siguiente comprobación de autorización; la UI debe refrescar perfil antes de mostrar permisos nuevos.
 
 ---
 

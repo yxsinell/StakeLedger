@@ -77,7 +77,7 @@
 
 **Critical Questions from Epic:**
 
-- PO: Metodos permitidos para depositos/retiros (⏳ Pending)
+- Métodos permitidos: bank_transfer, card, cash; operaciones solo cash.
 
 ---
 
@@ -85,17 +85,7 @@
 
 ### Ambiguities Identified
 
-**Ambiguity 1:** Metodos permitidos para depositos/retiros
-
-- **Location:** Notes
-- **Question for PO:** cuales metodos son validos? (card, bank_transfer, cash, etc.)
-- **Impact on Testing:** no podemos validar payload
-
-**Ambiguity 2:** Pocket destino en depositos
-
-- **Location:** Scope
-- **Question for PO/Dev:** los depositos siempre van a cash? se permite bonus/freebet?
-- **Impact on Testing:** afecta validaciones y balances
+**Reglas cerradas:** métodos `bank_transfer|card|cash`, solo pocket cash, máximo dos decimales sin redondeo e `Idempotency-Key` UUID obligatorio.
 
 ---
 
@@ -196,13 +186,11 @@
 
 **Product Owner:**
 
-- [ ] Definir metodos permitidos
-- [ ] Definir si depositos pueden ir a bonus/freebet
+- Las reglas de método y pocket están cerradas en `story.md` y Business Data Map.
 
 **Dev Lead:**
 
-- [ ] Confirmar codigos/mensajes de error
-- [ ] Confirmar precision/rounding
+- Implementar códigos: `400` validación o saldo insuficiente, `401` sin sesión, `403` bank ajeno, `404` bank inexistente, `409` conflicto idempotente.
 
 ---
 

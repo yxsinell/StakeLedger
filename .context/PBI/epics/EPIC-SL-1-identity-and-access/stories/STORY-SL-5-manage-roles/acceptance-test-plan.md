@@ -84,20 +84,11 @@
 
 ### Ambiguedades identificadas
 
-**Ambiguedad 1:** Matriz exacta de permisos
-
-- **Pregunta para PO/Dev:** que pantallas y endpoints corresponden a cada rol?
-- **Impacto:** define cobertura de pruebas RBAC.
-
-**Ambiguedad 2:** Mensajes de error por permisos
-
-- **Pregunta para PO:** cual es el mensaje estandar de error de permisos?
-- **Impacto:** validacion UX.
+**Matriz resuelta:** user opera recursos propios; editor mantiene catálogo y recomendaciones; admin además gestiona roles. El API responde 401 sin sesión y 403 con sesión sin permiso.
 
 ### Informacion faltante
 
-- Matriz de permisos detallada por rol.
-- Endpoints exactos protegidos.
+- Endpoints administrativos concretos de SL-5.
 
 ### Casos extremos no cubiertos
 
@@ -207,7 +198,7 @@
 | Caso extremo | Cubierto en historia? | Agregado a AC? | Caso de prueba | Prioridad |
 | --- | --- | --- | --- | --- |
 | Rol invalido | ❌ No | ✅ Si (Escenario 4) | TC-04 | Media |
-| Cambio de rol con sesion activa | ❌ No | ⚠️ Pendiente | TBD | Media |
+| Cambio de rol con sesion activa | ❌ No | ✅ Si | Recarga de perfil en siguiente comprobación | Media |
 
 ---
 
@@ -243,15 +234,7 @@
 
 ## Accion requerida
 
-**@PO:**
-
-- [ ] Definir matriz de permisos por rol.
-- [ ] Confirmar mensajes de error por permisos.
-
-**@Dev:**
-
-- [ ] Definir endpoints protegidos por rol.
-- [ ] Confirmar comportamiento de sesion al cambiar rol.
+**Decisiones cerradas:** matriz RBAC, códigos de error y comportamiento de sesión definidos en `story.md` y Business Data Map. Queda implementar y probar los endpoints administrativos.
 
 **@QA:**
 

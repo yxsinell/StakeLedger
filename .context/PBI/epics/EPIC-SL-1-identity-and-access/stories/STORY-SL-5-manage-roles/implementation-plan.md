@@ -15,7 +15,7 @@
 - `auth-context.tsx` carga `profile`, pero UI no usa rol para permisos.
 - No hay endpoints admin de usuarios/roles.
 - No hay matriz RBAC documentada por endpoint/pantalla.
-- Supabase advisors reportan exposicion GraphQL y RLS performance warnings en `users`.
+- Supabase advisors reportan descubrimiento GraphQL por grants autenticados; RLS sigue limitando filas. Ver postura en `.context/supabase-security-posture.md`.
 
 ## Alcance
 
@@ -42,7 +42,7 @@
 - Evitar que usuarios no admin escalen su propio `role`.
 - Considerar funcion SQL segura `is_admin()` o RPC con `security definer` solo si RLS no puede expresar la regla con claridad.
 - Corregir policies `auth.uid()` directo -> `(select auth.uid())` si se toca RLS.
-- Revocar grants GraphQL no deseados para `users`.
+- No revocar grants autenticados durante SL-5: el BFF actual depende de cliente Supabase autenticado. GraphQL se trata en fase de seguridad separada.
 
 ## API Necesaria
 
@@ -80,8 +80,8 @@
 - UI refleja permisos sin ser unica barrera de seguridad.
 - `bun run repo:check` pasa.
 
-## Decisiones Abiertas
+## Decisiones cerradas
 
-- Definir matriz exacta por rol para pantallas/endpoints.
-- Confirmar comportamiento cuando cambia rol de usuario con sesion activa.
-- Confirmar mensaje estandar para errores de permisos.
+- Matriz: `user` recursos propios; `editor` catálogo y recomendaciones; `admin` roles más capacidades de editor.
+- Cambio de rol: efectivo en siguiente autorización tras recarga del perfil; no se confía en ocultar UI.
+- Errores: `401` sin sesión, `403` con sesión sin permiso, `400` rol inválido, `404` usuario inexistente.

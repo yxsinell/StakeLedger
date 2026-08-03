@@ -13,14 +13,14 @@
 
 - `transactions` existe en `src/types/supabase.ts`.
 - No existe `src/app/api/transactions/route.ts`.
-- No hay constraint visible en generated types para `transactions.type` (`deposit|withdraw|transfer`).
+- `transactions.type` ya restringe `deposit`, `withdraw`, tipos de transferencia y otros asientos de ledger.
 - No hay UI real de depositos/retiros.
-- `QuickActionsPanel` es demo y no incluye flujo de movimientos reales.
+- No hay UI real de movimientos.
 
 ## Alcance
 
 - Registrar depositos y retiros manuales para banks propios.
-- Actualizar pocket afectado y ledger en operacion atomica.
+- Actualizar exclusivamente cash y ledger en operación atómica.
 - Validar que retiro no supere cash disponible.
 - Mantener fuera de alcance: pasarelas de pago y conciliacion automatica.
 
@@ -37,10 +37,9 @@
 
 ## DB/RLS Necesarios
 
-- Constraint/migracion para `transactions.type in ('deposit', 'withdraw', 'transfer', 'initial_deposit')` segun modelo final.
-- Constraint `amount > 0` y `pocket_type` valido.
-- Definir si depositos/retiros siempre afectan `cash`; SRS dice retiro no supera cash disponible.
-- Si `method` tiene catalogo, crear check o enum aprobado.
+- `transactions` ya restringe tipos, importe positivo y pocket válido; evaluar migration solo para atomicidad RPC y catálogo de métodos.
+- El contrato fija cash para depósitos y retiros.
+- Métodos permitidos: `bank_transfer`, `card`, `cash`.
 - RLS: owner puede insertar/leer movimientos de banks propios; no puede afectar bank ajeno.
 - RPC/transaction DB recomendado para actualizar pocket + insertar transaction sin parcialidad.
 
@@ -48,13 +47,13 @@
 
 - `POST /api/transactions`.
 - Request SRS: `{ bankId, type, amount, method }`.
-- Puede requerir `pocketType` si depositos a bonus/freebet se permiten; si no, fijar `cash` para deposit/withdraw.
+- No acepta `pocketType`: el contrato fija cash.
 - Success: `201` con `{ success, transactionId, balance }`.
 - Errors: `400` validacion/saldo insuficiente/metodo invalido, `401`, `403` bank ajeno, `404` bank inexistente.
 
 ## UI Necesaria
 
-- Formulario con tipo `deposit|withdraw`, monto, metodo, y pocket si se aprueba.
+- Formulario con tipo `deposit|withdraw`, monto y método; pocket fijo cash.
 - Mostrar cash disponible para retiros.
 - Confirmacion post-movimiento y actualizacion de balance.
 - `data-testid`: `transactionForm`, `transaction_type_select`, `transaction_amount_input`, `transaction_method_select`, `submit_transaction_button`, `withdraw_insufficient_funds_error`.
@@ -64,8 +63,8 @@
 - `bankId`: UUID.
 - `type`: enum `deposit|withdraw`.
 - `amount`: number finite, > 0, precision aprobada.
-- `method`: enum pendiente; hasta decidir, string trim max 50 si se permite libre.
-- `pocketType`: enum `cash|bonus|freebet` solo si se agrega al contrato.
+- `method`: enum `bank_transfer|card|cash`.
+- No se acepta `pocketType`.
 
 ## Tests Minimos
 
@@ -84,9 +83,8 @@
 - Supabase types actualizados si cambia schema.
 - `bun run repo:check` pasa.
 
-## Decisiones Abiertas
+## Decisiones cerradas
 
-- Definir metodos permitidos (`bank_transfer`, `card`, `cash`, etc.).
-- Definir si depositos pueden afectar bonus/freebet o solo cash.
-- Definir precision/rounding monetario.
-- Definir catalogo final de `transactions.type` junto con SL-7/SL-9.
+- Depósitos y retiros solo cash; métodos `bank_transfer`, `card`, `cash`.
+- Importe positivo con máximo dos decimales, sin redondeo.
+- `Idempotency-Key` UUID obligatorio; retry equivalente devuelve resultado previo y conflicto de payload devuelve `409`.

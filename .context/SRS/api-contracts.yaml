@@ -142,11 +142,51 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/banks/{bankId}/transfer:
+    post:
+      summary: Transfer cash to another owned bank in the same currency
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BankId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferCreateRequest'
+      responses:
+        '200':
+          description: Existing idempotent transfer result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '201':
+          description: Transfer applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /api/transactions:
     post:
       summary: Create deposit or withdraw
       security:
-        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -465,9 +505,10 @@ paths:
 components:
   securitySchemes:
     bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+      type: apiKey
+      in: cookie
+      name: sb-<project-ref>-auth-token
+      description: Legacy scheme name. This web API uses the Supabase BFF session cookie, never an Authorization bearer token.
     cookieAuth:
       type: apiKey
       in: cookie
@@ -502,6 +543,13 @@ components:
       schema:
         type: string
         format: uuid
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        type: string
+        format: uuid
 
   responses:
     BadRequest:
@@ -512,6 +560,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated user has no access to the resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Idempotency key was reused with a different request payload
       content:
         application/json:
           schema:
@@ -666,9 +726,12 @@ components:
           enum: [deposit, withdraw]
         amount:
           type: number
+          exclusiveMinimum: 0
+          multipleOf: 0.01
         method:
           type: string
-      required: [bankId, type, amount]
+          enum: [bank_transfer, card, cash]
+      required: [bankId, type, amount, method]
 
     TransactionResponse:
       type: object
@@ -681,6 +744,32 @@ components:
         balance:
           type: number
       required: [success, transactionId]
+
+    TransferCreateRequest:
+      type: object
+      properties:
+        toBankId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          multipleOf: 0.01
+      required: [toBankId, amount]
+
+    TransferResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transferId:
+          type: string
+          format: uuid
+        sourceBalance:
+          type: number
+        destinationBalance:
+          type: number
+      required: [success, transferId, sourceBalance, destinationBalance]
 
     BetCreateRequest:
       type: object
