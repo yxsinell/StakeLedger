@@ -11,13 +11,14 @@
 | Banks | Implementado: creación atómica, listado, detalle, pockets y saldo operativo=cash. |
 | Migrations | Fuente canónica `supabase/migrations/`; 15 versiones verificadas contra remoto. |
 | Movimientos | Implementados: depósitos/retiros cash-only con RPC e idempotencia. |
-| Transferencias y resto de dominios | Planificados. |
+| Transferencias | Implementadas: doble asiento cash atómico, idempotencia y BFF. |
+| Resto de dominios | Planificados. |
 
 ## Orden de entrega
 
 | Orden | Slice | Stories | Resultado |
 | --- | --- | --- | --- |
-| 1 | Transferencias | SL-9 | `POST /api/banks/{bankId}/transfer`, doble asiento cash y misma divisa. |
+| 1 | Transferencias | SL-9 | Implementado: `POST /api/banks/{bankId}/transfer`, doble asiento cash y misma divisa. |
 | 2 | RBAC administrativo | SL-5 | Gestión de roles y enforcement admin/editor para catálogo y recomendaciones. |
 | 3 | Catálogo local | SL-18, SL-19, SL-20 | Búsqueda local, fallback manual y mantenimiento editor/admin. |
 | 4 | Tickets y financiación | SL-12, SL-13 | Reserva atómica, stake y funding. |

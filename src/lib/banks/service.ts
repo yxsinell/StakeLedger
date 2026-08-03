@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import type { BankCreateInput, BankData } from './schemas';
+import type { BankCreateInput, BankData, TransferCreateInput } from './schemas';
 import type { Database } from '@/types/supabase';
 import { calculateBankBalances } from './balance';
 import {
@@ -8,6 +8,7 @@ import {
   BankCurrencySchema,
 
   BankSchema,
+  TransferResultSchema,
 } from './schemas';
 
 type BankRow = Database['public']['Tables']['banks']['Row'];
@@ -23,6 +24,16 @@ export class BanksServiceError extends Error {
   ) {
     super(message);
     this.name = 'BanksServiceError';
+  }
+}
+
+export class TransferServiceError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'TransferServiceError';
   }
 }
 
@@ -81,4 +92,24 @@ export const createBank = async (
   }
 
   return BankSchema.parse(data);
+};
+
+export const transferCash = async (
+  supabase: SupabaseClient<Database>,
+  sourceBankId: string,
+  input: TransferCreateInput,
+  idempotencyKey: string,
+) => {
+  const { data, error } = await supabase.rpc('record_cash_transfer', {
+    p_source_bank_id: sourceBankId,
+    p_destination_bank_id: input.toBankId,
+    p_amount: input.amount,
+    p_idempotency_key: idempotencyKey,
+  });
+
+  if (error) {
+    throw new TransferServiceError(error.message, error.code);
+  }
+
+  return TransferResultSchema.parse(data);
 };

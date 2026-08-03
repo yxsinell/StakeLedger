@@ -24,6 +24,30 @@ export const BankCreateRequestSchema = z
 
 export const BankIdSchema = z.string().uuid('Bank not found');
 
+export const TransferCreateRequestSchema = z
+  .object({
+    toBankId: BankIdSchema,
+    amount: MonetaryAmountSchema,
+  })
+  .strict()
+  .openapi('TransferCreateRequest');
+
+export const TransferResultSchema = z.object({
+  transferId: z.string().uuid(),
+  sourceBalance: z.number().nonnegative(),
+  destinationBalance: z.number().nonnegative(),
+  replayed: z.boolean(),
+});
+
+export const TransferResponseSchema = z
+  .object({
+    success: z.literal(true),
+    transferId: z.string().uuid(),
+    sourceBalance: z.number().nonnegative(),
+    destinationBalance: z.number().nonnegative(),
+  })
+  .openapi('TransferResponse');
+
 export const BankBalancesSchema = z
   .object({
     cash: z.number().nonnegative(),
@@ -59,3 +83,4 @@ export const BankListResponseSchema = z
 export type BankCreateInput = z.infer<typeof BankCreateRequestSchema>;
 export type BankCurrency = z.infer<typeof BankCurrencySchema>;
 export type BankData = z.infer<typeof BankSchema>;
+export type TransferCreateInput = z.infer<typeof TransferCreateRequestSchema>;

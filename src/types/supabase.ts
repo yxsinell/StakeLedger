@@ -1039,6 +1039,15 @@ export type Database = {
         }
         Returns: Json
       }
+      record_cash_transfer: {
+        Args: {
+          p_amount: number
+          p_destination_bank_id: string
+          p_idempotency_key: string
+          p_source_bank_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

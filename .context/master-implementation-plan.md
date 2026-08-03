@@ -17,12 +17,12 @@
 | Auth | BFF y UI implementados; perfil automático activo. |
 | Banks | RPC atómica, APIs, UI y saldo operativo implementados. |
 | DB/RLS | 15 migrations locales y remotas sincronizadas; movimientos financieros solo mediante RPC con ownership e idempotencia. |
-| API futura | Transferencias, catálogo, tickets, metas, recomendaciones y métricas no implementados. |
+| API futura | Catálogo, tickets, metas, recomendaciones y métricas no implementados. Transferencias implementadas mediante BFF y RPC. |
 | Seguridad | Leaked password protection desactivada; GraphQL y SECURITY DEFINER documentados como postura pendiente. |
 
-## Próxima fase exacta
+## Estado de fase exacto
 
-1. Diseñar, implementar y verificar SL-9 sobre ledger de movimientos ya validado.
+1. SL-9 implementado sobre el ledger validado: RPC atómica, idempotencia, BFF, UI y documentación. Pendiente cobertura de integración/E2E cuando exista infraestructura de pruebas adecuada.
 
 SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloquea escritura de catálogo y recomendaciones por editor/admin.
 

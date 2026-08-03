@@ -122,7 +122,7 @@ Usuario -> validar importe y clave idempotente -> operación atómica
 - **Implementado:** la clave de idempotencia es obligatoria por intento de escritura financiera; replay equivalente devuelve resultado original y payload distinto devuelve `409`.
 - **Implementado:** la RPC valida titularidad; bank inexistente o ajeno devuelve `404` genérico.
 
-### Transferencia — Planificado
+### Transferencia — Implementado
 
 ```text
 Usuario -> validar origen/destino -> misma titularidad y divisa
@@ -130,9 +130,10 @@ Usuario -> validar origen/destino -> misma titularidad y divisa
         -> auditoría de ambos asientos
 ```
 
-- **Confirmado:** solo `cash`, mismo usuario y misma divisa.
+- **Implementado:** endpoint BFF `POST /api/banks/{bankId}/transfer`, solo `cash`, banks propios distintos y misma divisa.
 - **Adoptado:** `transfer_debit` y `transfer_credit` son pareja indivisible; `related_transaction_id` los enlaza mutuamente.
-- **Adoptado:** misma clave idempotente no puede duplicar ninguno de los dos asientos.
+- **Implementado:** misma clave idempotente no puede duplicar ninguno de los dos asientos.
+- **Confirmado:** bank ajeno devuelve `403 BANK_FORBIDDEN`; bank inexistente devuelve `404 BANK_NOT_FOUND`.
 
 ### Creación, financiación y liquidación de ticket — Planificado
 
@@ -225,7 +226,7 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Bank y pockets atómicos | FR-005, SL-7 | `banks`, `bank_pockets`, `transactions`, `20260728154428` | Implementado: `/api/banks`, `/dashboard/banks/new` |
 | Saldo operativo cash | FR-006, SL-8 | `bank_pockets` | Implementado: `/api/banks/{bankId}`, `balance.ts`, detalle bank |
 | Depósito/retiro cash | FR-008, SL-10 | `transactions`, `transaction_idempotencies`, `20260803174121` | Implementado: `/api/transactions`, formulario en detalle de bank |
-| Transferencia cash misma divisa | FR-007, SL-9 | `transactions` y campos transferencia | Futuro: contrato/API/UI SL-9 |
+| Transferencia cash misma divisa | FR-007, SL-9 | `transactions`, `transaction_idempotencies`, `20260803183644` | Implementado: `/api/banks/{bankId}/transfer`, formulario en detalle bank |
 | Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding` | Futuro: `/api/bets` |
 | Liquidación, cashout y auditoría | FR-011..013, SL-14..16 | `bet_cashouts`, `audit_logs` | Futuro: `/api/bets/{id}/settle|cashout` |
 | Catálogo manual y normalizado | FR-014..016, SL-18..20 | tablas `catalog_*` | Futuro: `/api/catalog/*` |
@@ -242,7 +243,7 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Máximo dos decimales, sin redondeo | Confirmado; implementado para alta de bank |
 | Pockets cash, bonus y freebet | Confirmado e implementado |
 | Depósitos y retiros MVP solo cash | Confirmado e implementado |
-| Transferencias MVP solo cash, mismo usuario y misma divisa | Confirmado; planificado |
+| Transferencias MVP solo cash, mismo usuario y misma divisa | Confirmado e implementado |
 | Idempotencia en depósitos/retiros | Confirmado e implementado |
 
 ## 10. Decisiones adoptadas y pendientes

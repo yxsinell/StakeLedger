@@ -3,7 +3,10 @@ import {
   BankIdSchema,
   BankListResponseSchema,
   BankResponseSchema,
+  TransferCreateRequestSchema,
+  TransferResponseSchema,
 } from '@/lib/banks/schemas';
+import { IdempotencyKeySchema } from '@/lib/transactions/schemas';
 import { registry, z } from '../registry';
 import { ErrorResponseSchema } from './common';
 
@@ -28,6 +31,48 @@ registry.registerPath({
       },
     },
     401: errorResponse,
+    500: errorResponse,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/banks/{bankId}/transfer',
+  tags: ['Banks'],
+  summary: 'Transfer cash to another owned bank in the same currency',
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: z.object({
+      bankId: BankIdSchema,
+    }),
+    headers: z.object({
+      'Idempotency-Key': IdempotencyKeySchema,
+    }),
+    body: {
+      required: true,
+      content: {
+        'application/json': { schema: TransferCreateRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Existing idempotent transfer result',
+      content: {
+        'application/json': { schema: TransferResponseSchema },
+      },
+    },
+    201: {
+      description: 'Transfer applied',
+      content: {
+        'application/json': { schema: TransferResponseSchema },
+      },
+    },
+    400: errorResponse,
+    401: errorResponse,
+    403: errorResponse,
+    404: errorResponse,
+    409: errorResponse,
     500: errorResponse,
   },
 });
