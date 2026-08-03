@@ -11,11 +11,11 @@
 
 ## Estado Actual Verificado
 
-- `transactions` existe en `src/types/supabase.ts`.
-- No existe `src/app/api/transactions/route.ts`.
-- `transactions.type` ya restringe `deposit`, `withdraw`, tipos de transferencia y otros asientos de ledger.
-- No hay UI real de depositos/retiros.
-- No hay UI real de movimientos.
+- `transactions` y `transaction_idempotencies` existen en `src/types/supabase.ts`.
+- Existe `POST /api/transactions` con sesión BFF por cookie.
+- La RPC `record_cash_transaction` aplica movimientos cash-only y conserva el resultado idempotente.
+- Existe formulario de depósito/retiro en el detalle de bank.
+- La lista histórica de movimientos continúa fuera de alcance.
 
 ## Alcance
 
@@ -26,30 +26,28 @@
 
 ## Archivos a Tocar
 
-- `src/app/api/transactions/route.ts` - crear `POST`.
-- `src/lib/transactions/schemas.ts` - schema deposit/withdraw.
-- `src/lib/transactions/service.ts` - aplicar movimiento y ledger.
-- `src/lib/banks/balance.ts` - reutilizar saldo disponible.
-- `src/lib/openapi/schemas/transactions.ts` - schemas OpenAPI.
-- `src/lib/openapi/schemas/index.ts` - exportar transactions schemas.
-- `src/components/banks/transaction-form.tsx` - formulario dominio.
-- `src/app/dashboard/banks/[bankId]/page.tsx` - integrar acciones deposito/retiro.
+- `supabase/migrations/20260803174121_record_cash_transactions.sql` - RPC, tabla de idempotencia y constraint.
+- `supabase/migrations/20260803174535_add_cash_transaction_replay_status.sql` - estado de replay idempotente.
+- `src/app/api/transactions/route.ts` - BFF `POST`.
+- `src/lib/transactions/` - schemas, servicio y prueba unitaria.
+- `src/lib/openapi/schemas/transactions.ts` - contrato OpenAPI runtime.
+- `src/components/banks/transaction-form.tsx` - formulario de dominio integrado en detalle de bank.
 
 ## DB/RLS Necesarios
 
-- `transactions` ya restringe tipos, importe positivo y pocket válido; evaluar migration solo para atomicidad RPC y catálogo de métodos.
+- `transactions` restringe tipos, importe positivo y pocket válido; los nuevos depósitos/retiros con idempotencia exigen cash y método permitido.
 - El contrato fija cash para depósitos y retiros.
 - Métodos permitidos: `bank_transfer`, `card`, `cash`.
-- RLS: owner puede insertar/leer movimientos de banks propios; no puede afectar bank ajeno.
-- RPC/transaction DB recomendado para actualizar pocket + insertar transaction sin parcialidad.
+- RLS/grants: `authenticated` solo lee sus filas; la RPC `SECURITY DEFINER` valida `auth.uid()` y ownership antes de escribir.
+- La RPC bloquea cash, actualiza pocket, inserta ledger/auditoría y persiste resultado idempotente en una transacción.
 
 ## API Necesaria
 
 - `POST /api/transactions`.
 - Request SRS: `{ bankId, type, amount, method }`.
 - No acepta `pocketType`: el contrato fija cash.
-- Success: `201` con `{ success, transactionId, balance }`.
-- Errors: `400` validacion/saldo insuficiente/metodo invalido, `401`, `403` bank ajeno, `404` bank inexistente.
+- Success: `201` para movimiento nuevo y `200` para replay con `{ success, transactionId, balance }`.
+- Errors: `400` validación o saldo insuficiente, `401` sin sesión, `404` genérico para bank ajeno o inexistente, `409` para payload idempotente distinto.
 
 ## UI Necesaria
 

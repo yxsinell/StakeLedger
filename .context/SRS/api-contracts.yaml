@@ -194,12 +194,28 @@ paths:
             schema:
               $ref: '#/components/schemas/TransactionCreateRequest'
       responses:
+        '200':
+          description: Existing idempotent transaction result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
         '201':
           description: Transaction created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /api/bets:
     get:
@@ -602,6 +618,8 @@ components:
       properties:
         error:
           type: string
+        code:
+          type: string
         details:
           type: string
         field:
@@ -743,7 +761,7 @@ components:
           format: uuid
         balance:
           type: number
-      required: [success, transactionId]
+      required: [success, transactionId, balance]
 
     TransferCreateRequest:
       type: object

@@ -27,6 +27,8 @@ La protección usa comprobación contra Have I Been Pwned. Es una configuración
 | Leaked password protection desactivada | Riesgo real | Activación manual requerida antes de siguiente despliegue de Auth. |
 | Tablas visibles en schema GraphQL para `authenticated` | Exposición de metadatos, no bypass de RLS | Aceptado temporalmente. RLS limita filas por ownership; no revocar `SELECT` mientras BFF consulte con sesión autenticada. |
 | `create_bank_with_pockets` SECURITY DEFINER ejecutable por `authenticated` | Exposición intencional con superficie a vigilar | Aceptado temporalmente: valida `auth.uid()`, parámetros y usa search path seguro. La ruta BFF y el cliente autenticado necesitan ejecutarla. |
+| `record_cash_transaction` SECURITY DEFINER ejecutable por `authenticated` | Exposición intencional con superficie a vigilar | Aceptado: valida `auth.uid()`, titularidad, entrada e idempotencia; usa `search_path=''` y solo `authenticated` tiene `EXECUTE`. |
+| `transaction_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede ningún privilegio a `anon` ni `authenticated`; solo la RPC SECURITY DEFINER puede leer o escribir la tabla. |
 | `is_admin` e `is_catalog_editor` SECURITY DEFINER ejecutables por `authenticated` | Helper RLS intencional | Aceptado temporalmente: devuelven booleano del usuario actual y permiten políticas RLS. |
 | FKs sin índice e índices sin uso | Rendimiento, no seguridad | Diferir hasta que los flujos correspondientes tengan tráfico y planes de consulta reales. |
 
@@ -45,7 +47,7 @@ Deshabilitar GraphQL no deshabilita REST ni RPCs REST. Guías: <https://supabase
 
 ## Estrategia SECURITY DEFINER
 
-No revocar `EXECUTE` de las tres funciones actuales mientras las rutas BFF empleen token autenticado: la revocación rompería creación de banks y evaluación RLS.
+No revocar `EXECUTE` de las cuatro funciones actuales mientras las rutas BFF empleen token autenticado: la revocación rompería creación de banks, movimientos y evaluación RLS.
 
 Para cada función privilegiada futura:
 

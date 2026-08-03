@@ -109,7 +109,7 @@ Usuario -> GET /api/banks[/id] -> banks + bank_pockets -> cash, bonus, freebet, 
 - **Confirmado e implementado:** `operative = cash`.
 - **Implementado:** RLS limita lectura a banks propios; un bank inexistente o ajeno devuelve 404 genérico.
 
-### Depósito y retiro — Planificado
+### Depósito y retiro — Implementado
 
 ```text
 Usuario -> validar importe y clave idempotente -> operación atómica
@@ -117,9 +117,10 @@ Usuario -> validar importe y clave idempotente -> operación atómica
         -> audit_logs
 ```
 
-- **Adoptado:** ambos movimientos solo usan `cash`; métodos permitidos: `bank_transfer`, `card`, `cash`.
-- **Adoptado:** importe positivo, dos decimales como máximo, retirada no superior al cash disponible.
-- **Adoptado:** la clave de idempotencia es obligatoria por intento de escritura financiera y se reutiliza para devolver resultado original.
+- **Implementado:** ambos movimientos solo usan `cash`; métodos permitidos: `bank_transfer`, `card`, `cash`.
+- **Implementado:** importe positivo, dos decimales como máximo, retirada no superior al cash disponible.
+- **Implementado:** la clave de idempotencia es obligatoria por intento de escritura financiera; replay equivalente devuelve resultado original y payload distinto devuelve `409`.
+- **Implementado:** la RPC valida titularidad; bank inexistente o ajeno devuelve `404` genérico.
 
 ### Transferencia — Planificado
 
@@ -212,6 +213,7 @@ user -> follow -> recommendation_follows + payload prefill -> revisión manual -
 | --- | --- | --- |
 | Trigger de perfil | `20260727155541_create_auth_user_profile.sql` | Tras insertar en `auth.users`, inserta `public.users` con email en minúsculas y rol `user`. |
 | RPC atómica de bank | `20260728154428_create_banks_with_pockets.sql` | Valida entrada, crea bank, tres pockets, tres asientos iniciales y devuelve saldos; toda la llamada revierte ante error. |
+| RPC atómica de movimientos | `20260803174121_record_cash_transactions.sql` | Bloquea cash, aplica depósito/retiro, inserta ledger y auditoría, y conserva resultado idempotente. |
 
 No hay cron, webhook de negocio ni integración externa implementados.
 
@@ -222,7 +224,7 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Perfil por registro | FR-001, SL-2 | `users`, `20260727155541` | Implementado: `/api/auth/register`, `/signup` |
 | Bank y pockets atómicos | FR-005, SL-7 | `banks`, `bank_pockets`, `transactions`, `20260728154428` | Implementado: `/api/banks`, `/dashboard/banks/new` |
 | Saldo operativo cash | FR-006, SL-8 | `bank_pockets` | Implementado: `/api/banks/{bankId}`, `balance.ts`, detalle bank |
-| Depósito/retiro cash | FR-008, SL-10 | `transactions` | Futuro: `/api/transactions`, UI de movimientos |
+| Depósito/retiro cash | FR-008, SL-10 | `transactions`, `transaction_idempotencies`, `20260803174121` | Implementado: `/api/transactions`, formulario en detalle de bank |
 | Transferencia cash misma divisa | FR-007, SL-9 | `transactions` y campos transferencia | Futuro: contrato/API/UI SL-9 |
 | Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding` | Futuro: `/api/bets` |
 | Liquidación, cashout y auditoría | FR-011..013, SL-14..16 | `bet_cashouts`, `audit_logs` | Futuro: `/api/bets/{id}/settle|cashout` |
@@ -239,9 +241,9 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Divisas EUR, USD y ARS | Confirmado e implementado |
 | Máximo dos decimales, sin redondeo | Confirmado; implementado para alta de bank |
 | Pockets cash, bonus y freebet | Confirmado e implementado |
-| Depósitos y retiros MVP solo cash | Confirmado; planificado |
+| Depósitos y retiros MVP solo cash | Confirmado e implementado |
 | Transferencias MVP solo cash, mismo usuario y misma divisa | Confirmado; planificado |
-| Idempotencia en escrituras financieras | Confirmado; soporte parcial de schema |
+| Idempotencia en depósitos/retiros | Confirmado e implementado |
 
 ## 10. Decisiones adoptadas y pendientes
 

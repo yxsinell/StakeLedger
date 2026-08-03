@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoney } from '@/lib/banks/balance';
 import { BankResponseSchema } from '@/lib/banks/schemas';
+import { TransactionForm } from './transaction-form';
 
 export function BankDetail({ bankId }: { bankId: string }) {
   const [bank, setBank] = useState<BankData | null>(null);
@@ -148,6 +149,24 @@ export function BankDetail({ bankId }: { bankId: string }) {
           </Card>
         ))}
       </section>
+
+      <TransactionForm
+        bankId={bank.id}
+        currency={bank.currency}
+        cash={bank.balances.cash}
+        onRecorded={(cash) => {
+          setBank(current => current
+            ? {
+                ...current,
+                balances: {
+                  ...current.balances,
+                  cash,
+                  operative: cash,
+                },
+              }
+            : current);
+        }}
+      />
     </main>
   );
 }

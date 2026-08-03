@@ -16,15 +16,13 @@
 | Business Data Map | Implementado y canónico para reglas de dominio. |
 | Auth | BFF y UI implementados; perfil automático activo. |
 | Banks | RPC atómica, APIs, UI y saldo operativo implementados. |
-| DB/RLS | 13 migrations locales y remotas sincronizadas; escrituras financieras directas aún no existen. |
-| API futura | Transacciones, transferencias, catálogo, tickets, metas, recomendaciones y métricas no implementados. |
+| DB/RLS | 15 migrations locales y remotas sincronizadas; movimientos financieros solo mediante RPC con ownership e idempotencia. |
+| API futura | Transferencias, catálogo, tickets, metas, recomendaciones y métricas no implementados. |
 | Seguridad | Leaked password protection desactivada; GraphQL y SECURITY DEFINER documentados como postura pendiente. |
 
 ## Próxima fase exacta
 
-1. Diseñar SL-10 contra contrato de movimientos y reglas canónicas.
-2. Implementar y verificar SL-10.
-3. Diseñar, implementar y verificar SL-9 sobre ledger de movimientos ya validado.
+1. Diseñar, implementar y verificar SL-9 sobre ledger de movimientos ya validado.
 
 SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloquea escritura de catálogo y recomendaciones por editor/admin.
 

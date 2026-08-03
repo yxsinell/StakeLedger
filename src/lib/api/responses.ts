@@ -15,6 +15,21 @@ export const errorResponse = (message: string, status = 400, details?: string) =
 export const validationError = (field: string, message: string) =>
   NextResponse.json({ error: message, field }, { status: 400 });
 
+export const codedErrorResponse = (
+  error: string,
+  code: string,
+  status: number,
+  field?: string,
+) =>
+  NextResponse.json(
+    {
+      error,
+      code,
+      ...(field ? { field } : {}),
+    },
+    { status },
+  );
+
 export const unauthorizedError = (message = 'Unauthorized') =>
   NextResponse.json({ error: message }, { status: 401 });
 

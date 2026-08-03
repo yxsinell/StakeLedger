@@ -9,23 +9,22 @@
 | Auth web | Implementado: BFF con cookies para registro, login, logout y recuperación; perfil creado por trigger. |
 | RBAC | Schema y helpers RLS existen; gestión de roles y endpoints admin siguen pendientes. |
 | Banks | Implementado: creación atómica, listado, detalle, pockets y saldo operativo=cash. |
-| Migrations | Fuente canónica `supabase/migrations/`; 13 versiones verificadas contra remoto. |
-| Movimientos, transferencias y resto de dominios | Planificados. |
+| Migrations | Fuente canónica `supabase/migrations/`; 15 versiones verificadas contra remoto. |
+| Movimientos | Implementados: depósitos/retiros cash-only con RPC e idempotencia. |
+| Transferencias y resto de dominios | Planificados. |
 
 ## Orden de entrega
 
 | Orden | Slice | Stories | Resultado |
 | --- | --- | --- | --- |
-| 1 | Cerrar diseño de movimientos | Contratos SL-10 | Operación atómica cash-only, métodos e idempotencia documentados antes de código. |
-| 2 | Depósitos y retiros | SL-10 | `/api/transactions`, UI y pruebas de ownership/saldo. |
-| 3 | Transferencias | SL-9 | `POST /api/banks/{bankId}/transfer`, doble asiento cash y misma divisa. |
-| 4 | RBAC administrativo | SL-5 | Gestión de roles y enforcement admin/editor para catálogo y recomendaciones. |
-| 5 | Catálogo local | SL-18, SL-19, SL-20 | Búsqueda local, fallback manual y mantenimiento editor/admin. |
-| 6 | Tickets y financiación | SL-12, SL-13 | Reserva atómica, stake y funding. |
-| 7 | Liquidación, cashout y auditoría | SL-14, SL-15, SL-16 | Resultados, retorno y evidencia inmutable. |
-| 8 | Metas y riesgo | SL-22 a SL-26 | Fórmulas y límites definidos en Business Data Map. |
-| 9 | Recomendaciones | SL-28 a SL-30 | Publicación, feed y prefill seguro. |
-| 10 | Métricas | SL-31 | Consultas trazables sobre tickets liquidados. |
+| 1 | Transferencias | SL-9 | `POST /api/banks/{bankId}/transfer`, doble asiento cash y misma divisa. |
+| 2 | RBAC administrativo | SL-5 | Gestión de roles y enforcement admin/editor para catálogo y recomendaciones. |
+| 3 | Catálogo local | SL-18, SL-19, SL-20 | Búsqueda local, fallback manual y mantenimiento editor/admin. |
+| 4 | Tickets y financiación | SL-12, SL-13 | Reserva atómica, stake y funding. |
+| 5 | Liquidación, cashout y auditoría | SL-14, SL-15, SL-16 | Resultados, retorno y evidencia inmutable. |
+| 6 | Metas y riesgo | SL-22 a SL-26 | Fórmulas y límites definidos en Business Data Map. |
+| 7 | Recomendaciones | SL-28 a SL-30 | Publicación, feed y prefill seguro. |
+| 8 | Métricas | SL-31 | Consultas trazables sobre tickets liquidados. |
 
 ## Contratos transversales
 

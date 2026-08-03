@@ -91,11 +91,9 @@
 
 ### Missing Information / Gaps
 
-**Gap 1:** Mensajes/codigos de error esperados
+**Gap 1 resuelto:** contrato de errores explícito
 
-- **Type:** Acceptance Criteria
-- **Why It's Critical:** validar UX y API
-- **Suggested Addition:** definir codigos/mensajes
+- `400 VALIDATION_ERROR|INSUFFICIENT_CASH`, `401 AUTHENTICATION_REQUIRED`, `404 BANK_NOT_FOUND` genérico y `409 IDEMPOTENCY_KEY_REUSED`.
 
 **Gap 2:** Precision y redondeo
 
@@ -190,7 +188,7 @@
 
 **Dev Lead:**
 
-- Implementar códigos: `400` validación o saldo insuficiente, `401` sin sesión, `403` bank ajeno, `404` bank inexistente, `409` conflicto idempotente.
+- Validar códigos: `400` validación o saldo insuficiente, `401` sin sesión, `404` genérico para bank ajeno o inexistente y `409` conflicto idempotente.
 
 ---
 

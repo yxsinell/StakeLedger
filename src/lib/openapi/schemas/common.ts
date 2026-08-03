@@ -18,6 +18,7 @@ export const EmailSchema = z.string().email().openapi({
 export const ErrorResponseSchema = z
   .object({
     error: z.string().openapi({ description: 'Error message' }),
+    code: z.string().optional().openapi({ description: 'Stable application error code' }),
     details: z.string().optional().openapi({ description: 'Additional error details' }),
     field: z.string().optional().openapi({ description: 'Field that failed validation' }),
   })
