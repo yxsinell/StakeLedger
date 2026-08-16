@@ -85,3 +85,9 @@
 - Matriz: `user` recursos propios; `editor` catálogo y recomendaciones; `admin` roles más capacidades de editor.
 - Cambio de rol: efectivo en siguiente autorización tras recarga del perfil; no se confía en ocultar UI.
 - Errores: `401` sin sesión, `403` con sesión sin permiso, `400` rol inválido, `404` usuario inexistente.
+
+## Implementación realizada
+
+- Migration `20260816170000_add_admin_role_management.sql`: `role_version`, auditoría `user/role_changed`, revocación de update directo y RPC exclusiva service-role.
+- Rutas BFF administrativas, pantalla `/dashboard/admin/users` y navegación admin implementadas.
+- Tipos Supabase regenerados. Bootstrap de primer admin queda manual y fuera de esta story ejecutable.

@@ -997,18 +997,21 @@ export type Database = {
           email: string
           id: string
           role: string
+          role_version: number
         }
         Insert: {
           created_at?: string
           email: string
           id: string
           role?: string
+          role_version?: number
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
           role?: string
+          role_version?: number
         }
         Relationships: []
       }
@@ -1017,6 +1020,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      change_user_role: {
+        Args: {
+          p_actor_user_id: string
+          p_expected_role_version: number
+          p_role: string
+          p_target_user_id: string
+        }
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          role: string
+          role_version: number
+        }[]
+      }
       create_bank_with_pockets: {
         Args: {
           p_currency: string

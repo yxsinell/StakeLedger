@@ -17,25 +17,7 @@ export const createServerClient = async () => {
   });
 };
 
-export const createServerFromRequest = async (request: Request) => {
-  const authHeader = request.headers.get('authorization');
-
-  if (authHeader?.startsWith('Bearer ')) {
-    const accessToken = authHeader.slice('Bearer '.length);
-
-    return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-  }
-
+export const createServerFromRequest = async (_request: Request) => {
   return createServerClient();
 };
 

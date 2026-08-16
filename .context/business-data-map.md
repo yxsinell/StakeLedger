@@ -86,7 +86,7 @@ Usuario -> /api/auth/login -> cookie de sesión -> rutas protegidas
 
 - **Implementado:** BFF para registro, login, logout y recuperación de contraseña.
 - **Implementado:** `on_auth_user_created` crea perfil con email normalizado y rol `user`.
-- **Confirmado:** solo `admin` puede cambiar roles; enforcement completo de gestión de roles es futuro.
+- **Implementado:** solo `admin` lista usuarios y cambia roles ajenos mediante BFF cookie, RPC exclusiva de `service_role`, versión optimista y auditoría append-only. Ningún actor cambia su propio rol.
 
 ### Creación de bank — Implementado
 

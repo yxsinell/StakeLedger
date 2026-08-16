@@ -72,3 +72,7 @@ opencode.json
 dbhub.toml
 .cursor/mcp.json
 .copilot/mcp.json
+
+# ===== Supabase CLI Metadata =====
+supabase/.temp/
+.superpowers/

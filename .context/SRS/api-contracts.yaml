@@ -12,6 +12,49 @@ servers:
     description: Production
 
 paths:
+  /api/admin/users:
+    get:
+      summary: List users for role administration
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        '200': {description: Administrative user list}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/admin/users/{userId}/role:
+    patch:
+      summary: Change another user's role
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, expectedRoleVersion]
+              properties:
+                role: {type: string, enum: [admin, editor, user]}
+                expectedRoleVersion: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Role updated}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
   /api/auth/register:
     post:
       summary: Register new user

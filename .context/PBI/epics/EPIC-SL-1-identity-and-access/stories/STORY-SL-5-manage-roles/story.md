@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-1 (Identity and Access)
 **Priority:** High
 **Story Points:** 5
-**Status:** To Do
+**Status:** Implemented - pending manual bootstrap and QA
 **Assignee:** null
 
 ---
@@ -68,6 +68,8 @@
 - editor: añade y mantiene catálogo y recomendaciones; no gestiona roles ni saldo ajeno.
 - admin: gestiona roles, catálogo y recomendaciones; no opera saldo ajeno.
 - El cambio de rol se aplica en la siguiente comprobación de autorización; la UI debe refrescar perfil antes de mostrar permisos nuevos.
+- Cambios de rol: BFF con cookie, RPC exclusiva de `service_role`, control optimista por `role_version` y auditoría append-only.
+- Ningún actor puede cambiar su propio rol. El primer admin requiere bootstrap manual seguro.
 
 ---
 

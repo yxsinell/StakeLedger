@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  Banknote,
-  LayoutDashboard,
-} from 'lucide-react';
+import { Banknote, LayoutDashboard, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -46,7 +43,7 @@ const navItems = [
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'SL';
 
   return (
@@ -104,6 +101,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuItem>
                 );
               })}
+              {profile?.role === 'admin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Administración" data-testid="admin_users_nav">
+                    <Link href="/dashboard/admin/users">
+                      <Users className="h-4 w-4" />
+                      <span className={state === 'collapsed' ? 'sr-only' : ''}>Administración</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

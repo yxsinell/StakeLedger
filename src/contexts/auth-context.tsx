@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
       });
       const payload = await response.json().catch(() => null) as {
         error?: string
@@ -97,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     catch {
       return {
         ok: false as const,
-        message: 'No se ha podido conectar con el servicio. Inténtalo de nuevo.',
+        message: 'El servicio ha tardado demasiado. Inténtalo de nuevo.',
       };
     }
   }, []);
@@ -148,15 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, message };
         }
 
-        await syncSession();
-
         return { ok: true };
       }
       finally {
         setLoading(false);
       }
     },
-    [requestAuth, syncSession],
+    [requestAuth],
   );
 
   const signup = useCallback(

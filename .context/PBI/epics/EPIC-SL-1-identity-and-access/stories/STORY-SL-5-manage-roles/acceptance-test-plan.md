@@ -241,6 +241,12 @@
 - [ ] Revisar cobertura y parametrizacion propuesta.
 - [ ] Preparar datos de prueba y ambiente.
 
+## Evidencia de implementación
+
+- `GET /api/admin/users` y `PATCH /api/admin/users/{userId}/role` usan sesión cookie BFF y rechazan no-admin.
+- La RPC `change_user_role` solo tiene `EXECUTE` para `service_role`; bloquea auto-cambio y conflictos de versión.
+- Pendiente QA manual: bootstrap de admin autorizado, acceso UI admin y denegación user/editor.
+
 ---
 
 **Documentacion:**
