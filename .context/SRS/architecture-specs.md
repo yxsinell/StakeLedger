@@ -1,7 +1,7 @@
 # Architecture Specs - StakeLedger
 
-**Fecha:** 2026-02-28
-**Version:** 1.0
+**Fecha:** 2026-08-16
+**Version:** 1.1
 **Autor:** Equipo StakeLedger
 
 ---
@@ -34,6 +34,10 @@ erDiagram
   banks ||--o{ transactions : records
   banks ||--o{ bets : places
   bets ||--o{ bet_legs : contains
+  bets ||--o{ bet_funding : funded_by
+  transactions ||--o| bet_funding : reserves
+  users ||--o{ bet_idempotencies : scopes
+  bets ||--o| bet_idempotencies : result_of
   bets ||--o{ bet_cashouts : splits
   bets ||--o{ audit_logs : audited
   goals ||--o{ goal_events : updates
@@ -78,9 +82,27 @@ erDiagram
   bet_legs {
     uuid id
     uuid bet_id
-    string market
+    string reference_type
+    uuid event_id
+    uuid market_id
+    string event_name
+    string market_name
     string selection
     decimal odds
+  }
+  bet_funding {
+    uuid id
+    uuid bet_id
+    string pocket_type
+    decimal amount
+    uuid transaction_id
+  }
+  bet_idempotencies {
+    uuid id
+    uuid user_id
+    uuid idempotency_key
+    string payload_hash
+    uuid bet_id
   }
   goals {
     uuid id
@@ -173,15 +195,24 @@ erDiagram
 
 ## 4. Data Flow (Create Bet Ticket)
 
-1. User completa formulario de apuesta (Frontend)
-2. Validacion client-side (schema)
-3. POST /api/bets
-4. Validacion server-side
-5. Calculo de stake y cap 40% cash
-6. Insert en bets y bet_legs
-7. Registro en transactions y audit_logs
-8. Respuesta 201 con bet_id y saldos actualizados
-9. UI actualiza ledger y balance
+> Implementación Fase 4G aplicada para SL-12/SL-13. No describe settlement ni cashout.
+
+1. Usuario completa `/dashboard/bets/new` con ticket, 1..20 legs, stake y funding.
+2. UI valida para feedback, sin asumir autoridad sobre saldos o cap.
+3. BFF recibe `POST /api/bets` con cookie de sesión e `Idempotency-Key` UUID.
+4. BFF valida payload discriminado: stake por amount/level y legs normalized/manual.
+5. Cliente `service_role` invoca una RPC `SECURITY INVOKER` no ejecutable por `anon` ni `authenticated`.
+6. RPC bloquea idempotencia, bank y pockets en orden determinista.
+7. RPC lee cash previo, calcula stake con `cash × (level/20) × 0.40` cuando aplica y valida cap exacto del 40%.
+8. RPC crea ticket, legs, funding y una transacción `bet_reserve` por cada aporte positivo.
+9. Cada `bet_funding` enlaza su reserva; el ticket cambia a `open` únicamente al completar todas.
+10. Cualquier fallo revierte agregado, saldos e idempotencia.
+11. API responde `201` al crear o `200` ante replay equivalente; la UI actualiza ticket y balances.
+
+### Preflight completado Fase 4G
+
+- Migration RBAC local y remota reconciliada como `20260816145742_add_admin_role_management.sql`.
+- Las 4 bets legacy remotas se preservan sin borrado ni backfill; constraints Fase 4G se aplican a filas nuevas sin validar retrospectivamente su forma.
 
 ---
 
@@ -209,6 +240,15 @@ sequenceDiagram
 - Roles definidos: admin, editor, user
 - Policies en API Routes y RLS en Supabase
 - Endpoints admin solo accesibles por admin/editor
+
+### Bets Fase 4G
+
+- El BFF autentica con cookie y evita exponer credenciales `service_role` al cliente.
+- La RPC de creación es `SECURITY INVOKER` y concede `EXECUTE` solo a `service_role`.
+- RLS permanece activa para lecturas por ownership de bets, legs, funding y transactions.
+- `authenticated` no recibe DML directo sobre funding ni tablas financieras escritas por la RPC.
+- Bank ajeno e inexistente producen el mismo `404` para impedir enumeración.
+- Grants, RLS, atomicidad e idempotencia se verificaron contra remoto con rollback. Concurrencia multisesión y E2E manual permanecen pendientes.
 
 ### Data Protection
 

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: StakeLedger API
-  version: 1.0.0
+  version: 1.1.0
   description: API para gestion de banks, apuestas, metas y recomendaciones.
 servers:
   - url: http://localhost:3000
@@ -266,7 +266,7 @@ paths:
     get:
       summary: List bets
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: bankId
@@ -281,9 +281,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/BetListResponse'
     post:
-      summary: Create bet ticket
+      summary: Create an atomic bet ticket with funding reservations
+      description: Creates ticket, 1..20 legs, funding and one bet_reserve transaction per positive funding amount in a single atomic operation. Settlement and cashout are outside Phase 4G.
       security:
-        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -291,18 +294,34 @@ paths:
             schema:
               $ref: '#/components/schemas/BetCreateRequest'
       responses:
+        '200':
+          description: Existing result for an equivalent idempotent request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BetResponse'
         '201':
           description: Bet created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BetResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /api/bets/{betId}:
     get:
       summary: Get bet details
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/BetId'
       responses:
@@ -824,7 +843,7 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
-      description: Idempotency key was reused with a different request payload
+      description: Request conflicts with current resource state, idempotency, balance or business constraints
       content:
         application/json:
           schema:
@@ -1028,44 +1047,154 @@ components:
 
     BetCreateRequest:
       type: object
+      additionalProperties: false
       properties:
         bankId:
           type: string
           format: uuid
         legs:
           type: array
+          minItems: 1
+          maxItems: 20
           items:
             $ref: '#/components/schemas/BetLegInput'
         odds:
           type: number
-        stakeAmount:
-          type: number
-        stakeLevel:
-          type: number
+          minimum: 1
+          exclusiveMinimum: true
+          multipleOf: 0.0001
+        stake:
+          oneOf:
+            - $ref: '#/components/schemas/BetStakeAmountInput'
+            - $ref: '#/components/schemas/BetStakeLevelInput'
+          discriminator:
+            propertyName: type
+            mapping:
+              amount: '#/components/schemas/BetStakeAmountInput'
+              level: '#/components/schemas/BetStakeLevelInput'
         funding:
-          type: object
-          properties:
+          $ref: '#/components/schemas/BetFundingInput'
+      required: [bankId, legs, odds, stake, funding]
+
+    BetStakeAmountInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [amount]
+        amount:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          multipleOf: 0.01
+      required: [type, amount]
+
+    BetStakeLevelInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [level]
+        level:
+          type: number
+          minimum: 0.1
+          maximum: 20
+          multipleOf: 0.1
+      required: [type, level]
+
+    BetFundingInput:
+      type: object
+      additionalProperties: false
+      description: At least one amount must be positive and the exact sum must equal the computed or explicit stake. Pure cash, bonus, freebet and mixed funding are allowed.
+      properties:
+        cash:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+        bonus:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+        freebet:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+      required: [cash, bonus, freebet]
+      anyOf:
+        - properties:
             cash:
-              type: number
+              minimum: 0
+              exclusiveMinimum: true
+        - properties:
             bonus:
-              type: number
+              minimum: 0
+              exclusiveMinimum: true
+        - properties:
             freebet:
-              type: number
-      required: [bankId, legs, odds]
+              minimum: 0
+              exclusiveMinimum: true
 
     BetLegInput:
+      oneOf:
+        - $ref: '#/components/schemas/NormalizedBetLegInput'
+        - $ref: '#/components/schemas/ManualBetLegInput'
+      discriminator:
+        propertyName: referenceType
+        mapping:
+          normalized: '#/components/schemas/NormalizedBetLegInput'
+          manual: '#/components/schemas/ManualBetLegInput'
+
+    NormalizedBetLegInput:
       type: object
+      additionalProperties: false
       properties:
+        referenceType:
+          type: string
+          enum: [normalized]
         eventId:
           type: string
           format: uuid
-        market:
+        marketId:
           type: string
+          format: uuid
         selection:
           type: string
+          minLength: 1
+          maxLength: 100
         odds:
           type: number
-      required: [market, selection, odds]
+          minimum: 1
+          exclusiveMinimum: true
+          multipleOf: 0.0001
+      required: [referenceType, eventId, marketId, selection, odds]
+
+    ManualBetLegInput:
+      type: object
+      additionalProperties: false
+      properties:
+        referenceType:
+          type: string
+          enum: [manual]
+        eventName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        marketName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        selection:
+          type: string
+          minLength: 1
+          maxLength: 100
+        odds:
+          type: number
+          minimum: 1
+          exclusiveMinimum: true
+          multipleOf: 0.0001
+      required: [referenceType, eventName, marketName, selection, odds]
 
     BetResponse:
       type: object
@@ -1074,7 +1203,20 @@ components:
           type: boolean
         bet:
           $ref: '#/components/schemas/Bet'
-      required: [success, bet]
+        balances:
+          $ref: '#/components/schemas/BetBalances'
+        replayed:
+          type: boolean
+      required: [success, bet, balances, replayed]
+
+    BetBalances:
+      type: object
+      additionalProperties: false
+      properties:
+        cash: {type: number, minimum: 0, multipleOf: 0.01}
+        bonus: {type: number, minimum: 0, multipleOf: 0.01}
+        freebet: {type: number, minimum: 0, multipleOf: 0.01}
+      required: [cash, bonus, freebet]
 
     BetListResponse:
       type: object
@@ -1094,26 +1236,55 @@ components:
           format: uuid
         status:
           type: string
+          enum: [open]
+        fundingStatus:
+          type: string
+          enum: [reserved]
         stakeAmount:
           type: number
         stakeLevel:
           type: number
+          nullable: true
         odds:
           type: number
         legs:
           type: array
           items:
             $ref: '#/components/schemas/BetLeg'
+        funding:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/BetFundingReservation'
+      required: [id, status, fundingStatus, stakeAmount, stakeLevel, odds, legs, funding]
+
+    BetFundingReservation:
+      type: object
+      additionalProperties: false
+      properties:
+        pocketType:
+          type: string
+          enum: [cash, bonus, freebet]
+        amount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          multipleOf: 0.01
+        transactionId:
+          type: string
+          format: uuid
+      required: [pocketType, amount, transactionId]
 
     BetLeg:
-      type: object
-      properties:
-        market:
-          type: string
-        selection:
-          type: string
-        odds:
-          type: number
+      oneOf:
+        - $ref: '#/components/schemas/NormalizedBetLegInput'
+        - $ref: '#/components/schemas/ManualBetLegInput'
+      discriminator:
+        propertyName: referenceType
+        mapping:
+          normalized: '#/components/schemas/NormalizedBetLegInput'
+          manual: '#/components/schemas/ManualBetLegInput'
 
     BetSettleRequest:
       type: object

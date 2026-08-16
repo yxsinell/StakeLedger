@@ -1,97 +1,115 @@
-# Implementation Plan: STORY-SL-12 - Registrar ticket con legs
+# Implementation Plan: SL-12 - Registrar ticket con legs
 
-## Fuentes
+## Fuentes canónicas
 
-- Story: `story.md`
-- Acceptance test plan: `acceptance-test-plan.md`
-- Roadmap Fase 2A: `.context/dev-roadmap.md`
-- Gap analysis Fase 2A: `.context/reports/phase-2a-gap-analysis.md`
-- SRS: `.context/SRS/functional-specs.md` FR-009
-- API contract: `.context/SRS/api-contracts.yaml` `/api/bets`, `/api/bets/{betId}`
+- Story y acceptance test plan de esta carpeta.
+- `.context/SRS/api-contracts.yaml` (`POST /api/bets`).
+- `.context/SRS/functional-specs.md` (FR-009 y FR-010).
+- `.context/SRS/architecture-specs.md` (flujo Fase 4G).
+- `.context/business-data-map.md`.
+- `.context/supabase-security-posture.md`.
 
-## Estado Actual Verificado
+## Preflight completado
 
-- No existe `src/app/api/bets/route.ts` ni `src/app/api/bets/[betId]/route.ts`.
-- `src/types/supabase.ts` contiene `bets` y `bet_legs`, pero `bets` solo tiene `bank_id`, `odds`, `stake_amount`, `status` y `created_at`.
-- No existe campo `stake_level`, funding, reserved amount, goal link, idempotency key ni relacion con catalogo normalizado.
-- `src/app/dashboard/page.tsx` lista bets recientes desde Supabase, pero no crea tickets ni muestra stake recomendado real.
-- No hay test infra automatizada detectada.
+Resultado previo a crear migrations:
 
-## Dependencias
+1. Drift RBAC reconciliado como `20260816145742_add_admin_role_management.sql` local y remoto.
+2. Las 4 bets legacy remotas permanecen intactas, sin `bet_funding`, reserva ni idempotencia.
+3. No se borraron, transformaron ni rellenaron esos datos.
+4. Schema, constraints, grants, RLS y funciones remotas se inspeccionaron antes y después de aplicar SQL.
 
-- Depende de Identity SL-2/SL-3 para usuario autenticado y ownership.
-- Depende de Banks SL-7/SL-8/SL-10 para bank, cash disponible, pockets y ledger confiable.
-- Depende de decisiones SL-18/SL-20 si las legs deben referenciar catalogo normalizado desde el primer MVP.
+El preflight dejó de bloquear migrations Fase 4G; tratamiento histórico de filas legacy sigue fuera de alcance.
 
-## Alcance
+## Alcance técnico
 
-- Crear ticket con una o mas legs, odds validas y stake calculado o explicitado.
-- Validar cap 40% sobre cash disponible.
-- Reservar fondos del pocket definido y registrar ledger/audit.
-- Mantener fuera de alcance OCR, importacion automatica y funding mixto avanzado de SL-13.
+- Ruta BFF `POST /api/bets` con cookie de sesión e `Idempotency-Key` UUID.
+- Validación Zod discriminada para stake y legs.
+- RPC única para crear ticket, 1..20 legs, funding, reservas e idempotencia.
+- UI MVP `/dashboard/bets/new`.
+- Sin endpoint `/api/bets/{betId}/fund`.
+- Sin settlement, cashout ni reglas de retorno de freebet.
 
-## Archivos a Tocar
+## Orden de implementación
 
-- `src/app/api/bets/route.ts` - `GET` list y `POST` create.
-- `src/app/api/bets/[betId]/route.ts` - detalle por ownership.
-- `src/lib/bets/schemas.ts` - Zod para create/list/detail.
-- `src/lib/bets/stake.ts` - calculo de stake, cap y validaciones.
-- `src/lib/bets/service.ts` - persistencia atomica bet+legs+reservation.
-- `src/lib/banks/balance.ts` - cash disponible reutilizable desde SL-8/SL-10.
-- `src/lib/openapi/schemas/bets.ts` - schemas de contrato.
-- `src/components/bets/bet-ticket-form.tsx` - formulario de ticket.
-- `src/app/dashboard/page.tsx` o ruta dedicada de bets - integrar UI real.
+### 1. Migration de bets Fase 4G
 
-## DB/RLS Necesarios
+- Completar modelo de `bets`, `bet_legs`, `bet_funding`, transactions de reserva e idempotencia de bets.
+- Representar legs con `reference_type=normalized|manual` y constraints mutuamente excluyentes.
+- Para normalized, exigir `event_id` y `market_id`; validar que el market pertenece al event.
+- Para manual, exigir nombres de evento y mercado, y mantener IDs nulos.
+- Aplicar checks de cuotas `>1` y precisión máxima de cuatro decimales.
+- Aplicar checks monetarios y de nivel sin redondeo.
+- Enlazar cada fila `bet_funding` con su `bet_reserve` mediante `reserved_transaction_id`.
 
-- Migration-first: requiere migracion aun no existente localmente para completar `bets` con `stake_level`, `result`, `return_amount`, `profit_amount`, `funding_status` y/o `reserved_transaction_id` si se aprueba.
-- Definir si `bet_legs` guarda texto libre MVP o FK a catalogo normalizado.
-- Definir constraint de `status` (`open|settled|cashed_out|void` o equivalente) y `odds > 1.0`.
-- Requiere transaccion DB/RPC para crear bet, legs, reservar pocket y crear transaction/audit sin estado parcial.
-- RLS: owner solo puede leer/crear bets de banks propios; bank ajeno debe devolver `403` o `404` consistente.
+### 2. Seguridad y RPC
 
-## API Necesaria
+- Implementar una RPC `SECURITY INVOKER` invocada por cliente `service_role` desde BFF.
+- No conceder `EXECUTE` de esta RPC a `anon` ni `authenticated`; concederlo solo a `service_role`.
+- Revocar DML directo de `authenticated` sobre tablas financieras afectadas, incluido `bet_funding`, y conservar únicamente lecturas propias necesarias.
+- Mantener RLS activa con policies de lectura por ownership para bets, legs, funding y transacciones.
+- La RPC recibe el `user_id` autenticado validado por BFF y verifica ownership dentro de la transacción.
+- Bloquear idempotencia, bank y pockets en orden determinista para evitar carreras y reducir deadlocks.
+- Calcular cash previo y cap dentro del bloqueo, nunca desde preview cliente.
+- Insertar ticket no abierto, legs, funding y una transacción `bet_reserve` por cada monto positivo.
+- Marcar `open` únicamente al final; cualquier excepción revierte todo.
 
-- `POST /api/bets` con `{ bankId, legs, odds, stakeLevel?, stakeAmount?, pocketType? }`.
-- `GET /api/bets?bankId=` para listar bets del usuario.
-- `GET /api/bets/{betId}` para detalle con legs y ledger summary.
-- Success create: `201` con `{ success, bet }` alineado a OpenAPI.
-- Errors: `400` odds/legs/stake invalido, `401`, `403` bank ajeno, `409` cap/saldo si se decide bloquear.
+### 3. Idempotencia
 
-## UI Necesaria
+- Persistir clave, usuario, hash canónico de payload y resultado de creación.
+- Payload equivalente con clave existente devuelve agregado original y `200`.
+- Payload distinto con clave existente devuelve `409`.
+- Una clave no puede crear más de un ticket bajo concurrencia.
 
-- Formulario de ticket con bank, pocket, legs, odds, stake level/amount y preview de stake recomendado.
-- Mostrar cap 40%, cash disponible y mensaje cuando el stake supera cap.
-- `data-testid`: `betTicketForm`, `bank_select`, `pocket_select`, `ticket_odds_input`, `stake_level_input`, `stake_amount_input`, `add_leg_button`, `submit_bet_button`, `stake_cap_warning`.
+### 4. API BFF
 
-## Validaciones Zod
+- Validar cookie; ausencia o invalidez devuelve `401`.
+- Validar cabecera y body antes de RPC; errores estructurales devuelven `400`.
+- Traducir bank ajeno/inexistente a `404` genérico.
+- Traducir cap o saldo dinámico insuficiente a `409`.
+- Responder `201` en creación, `200` en replay y `500` genérico para fallo inesperado.
+- No exponer detalles SQL ni diferencias de ownership.
+
+### 5. UI MVP
+
+- Crear `/dashboard/bets/new` con selección de bank, 1..20 legs, referencia manual/normalized, cuota, stake y funding.
+- Preview de stake por nivel sirve como ayuda; servidor conserva autoridad.
+- No redondear ni corregir inputs.
+- Deshabilitar submit ante validación conocida y mostrar conflicto del servidor sin perder datos ingresados.
+- Usar exclusivamente `data-testid` estáticos definidos en ATP.
+
+## Validaciones
 
 - `bankId`: UUID.
-- `legs`: array min 1; cada leg con `market`, `selection`, `odds > 1.0`.
-- `odds`: number finite, > 1.0.
-- `stakeLevel`: rango pendiente de confirmacion; ATP sugiere validar 0/limites.
-- `stakeAmount`: number finite, > 0, precision aprobada.
-- Definir exclusividad o precedencia entre `stakeLevel` y `stakeAmount`.
+- `legs`: 1..20.
+- `odds`: ticket y leg `>1`, máximo cuatro decimales.
+- `stake`: unión discriminada exclusiva entre `amount` y `level`.
+- `amount`: positivo, máximo dos decimales.
+- `level`: `0.1..20.0`, múltiplo exacto de `0.1`.
+- Fórmula: `cash × (level/20) × 0.40`; si produce más de dos decimales, `400`.
+- Cap: `stake <= cash previo × 0.40`, independiente del funding.
+- Funding: reglas detalladas en SL-13 y obligatorio en el mismo request.
 
-## Tests Minimos
+## Pruebas y verificación
 
-- Unit: odds > 1.0, legs vacias, cap 40%, precedencia stake.
-- API: crea bet+legs+reservation+audit con cash suficiente.
-- API: odds invalidas y legs vacias devuelven `400` sin cambios DB.
-- API/RLS: bank ajeno no permite crear bet.
-- E2E: formulario muestra stake recomendado y confirma creacion.
+- Unitarias de schemas, precisión, fórmula, cap y discriminantes.
+- API para códigos `200/201/400/401/404/409/500`.
+- DB/RPC para rollback en cada punto de fallo.
+- RLS/grants para lectura propia, denegación cruzada y ausencia de DML/EXECUTE directo.
+- Concurrencia para saldo, cap e idempotencia.
+- E2E manual de creación con leg manual.
+- Regenerar tipos Supabase y ejecutar `bun run repo:check` tras implementación.
 
-## Criterios de Cierre
+## Archivos previstos
 
-- AC SL-12 cubiertos: ticket exitoso, odds invalidas, cap aplicado.
-- Dependencias SL-7/SL-8/SL-10 cerradas o mockeadas solo en tests unitarios.
-- Ledger y audit explican la reserva de fondos.
-- Supabase types actualizados si cambia schema.
-- `bun run repo:check` pasa.
+- Migration nueva en `supabase/migrations/`, solo después del preflight.
+- `src/app/api/bets/route.ts`.
+- Schemas y servicio de bets bajo `src/lib/bets/`.
+- Schemas OpenAPI runtime bajo `src/lib/openapi/`.
+- Página y componentes bajo `src/app/dashboard/bets/new/` y `src/components/bets/`.
+- Pruebas en infraestructura existente o aprobada; no inventar runner alternativo.
 
-## Decisiones Abiertas
+## Criterios de cierre
 
-- Ajustar automaticamente vs bloquear si stake recomendado supera cap.
-- Pocket permitido en SL-12: solo cash o cualquier pocket.
-- Rango oficial de `stakeLevel` y precedencia contra `stakeAmount`.
-- Idempotencia para doble envio.
+- Un request válido produce exactamente un ticket completo y `open`.
+- Ningún error deja ticket, leg, funding, reserva, saldo o idempotencia parcial.
+- Contrato API, migrations, tipos, RLS/grants, UI y pruebas coinciden con SL-12/SL-13.

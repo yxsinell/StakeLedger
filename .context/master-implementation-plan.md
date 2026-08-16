@@ -1,6 +1,6 @@
 # Master Implementation Plan
 
-> Actualizado: 2026-08-03. Este plan parte del estado verificable, no de la planificación histórica.
+> Actualizado: 2026-08-16. Este plan parte del estado verificable, no de la planificación histórica.
 
 ## Guardrails
 
@@ -16,13 +16,14 @@
 | Business Data Map | Implementado y canónico para reglas de dominio. |
 | Auth | BFF y UI implementados; perfil automático activo. |
 | Banks | RPC atómica, APIs, UI y saldo operativo implementados. |
-| DB/RLS | 15 migrations locales y remotas sincronizadas; movimientos financieros solo mediante RPC con ownership e idempotencia. |
-| API futura | Catálogo, tickets, metas, recomendaciones y métricas no implementados. Transferencias implementadas mediante BFF y RPC. |
+| DB/RLS | 21 migrations locales y remotas sincronizadas; movimientos y reservas financieras solo mediante RPC con ownership e idempotencia. |
+| API | Transferencias y tickets implementados mediante BFF y RPC. Catálogo, metas, recomendaciones y métricas permanecen futuros. |
 | Seguridad | Leaked password protection desactivada; GraphQL y SECURITY DEFINER documentados como postura pendiente. |
 
 ## Estado de fase exacto
 
 1. SL-9 implementado sobre el ledger validado: RPC atómica, idempotencia, BFF, UI y documentación. Pendiente cobertura de integración/E2E cuando exista infraestructura de pruebas adecuada.
+2. SL-12/SL-13 implementados: RPC atómica, funding por pocket, idempotencia, BFF, UI y documentación. Pendientes E2E manual, concurrencia multisesión y normalized end-to-end cuando exista catálogo de aplicación.
 
 SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloquea escritura de catálogo y recomendaciones por editor/admin.
 
@@ -35,13 +36,13 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 | Transferencia | Debita y acredita `cash` entre banks propios de misma divisa; crea `transfer_debit` y `transfer_credit` enlazados. |
 | Idempotencia | Cabecera `Idempotency-Key` UUID obligatoria; retry equivalente devuelve operación previa; reutilización distinta devuelve `409`. |
 
-## Fases posteriores
+## Estado de dominios
 
-| Fase | Dependencia cerrada | Objetivo |
+| Dominio | Estado | Objetivo |
 | --- | --- | --- |
 | RBAC | Auth implementada | Administración de roles y permisos de editor/admin. |
 | Catálogo | RBAC | Catálogo local, entrada manual y alias. |
-| Bets | Movimientos y catálogo | Tickets, financiación y reservas. |
+| Bets | Implementado Fase 4G; validación manual pendiente | Tickets, financiación y reservas. |
 | Settlement | Bets | Retornos por pocket, cashout y auditoría. |
 | Goals | Settlement | Metas y riesgo sobre resultados fiables. |
 | Recommendations | RBAC, catálogo, bets | Feed y prefill sin creación implícita de ticket. |

@@ -1,8 +1,8 @@
 # Business Data Map: StakeLedger
 
-> Fuente de verdad operativa del MVP. Actualizado: 2026-08-03.
+> Fuente de verdad operativa del MVP. Actualizado: 2026-08-16.
 >
-> Leyenda: **Implementado** describe comportamiento verificable en código o schema remoto. **Confirmado** recoge una decisión de producto explícita. **Adoptado** es una decisión de arquitectura tomada para cerrar un bloqueo. **Futuro** existe en schema o especificación, pero aún no tiene flujo de aplicación implementado.
+> Leyenda: **Implementado** describe comportamiento verificable en código o schema remoto. **Confirmado** recoge una decisión de producto explícita. **Adoptado** es una decisión de arquitectura tomada para cerrar un bloqueo. **Diseñado** define un contrato aprobado todavía no implementado. **Futuro** existe en schema o especificación, pero aún no tiene flujo de aplicación implementado.
 
 ## 1. Propósito, usuarios y límites
 
@@ -27,6 +27,7 @@ Fuera de alcance MVP: OCR, importación desde casas, fiscalidad, pagos, alertas 
 | freebet | Crédito promocional para stake; su regla de devolución se define en liquidación futura. |
 | saldo operativo | Importe `cash` del bank. Implementado en `src/lib/banks/balance.ts`. |
 | transacción | Asiento inmutable de entrada, salida, reserva, retorno o transferencia; `amount` siempre es positivo y su tipo expresa dirección. |
+| reserva de apuesta | Débito `bet_reserve` de un pocket al crear un ticket; cada aporte positivo genera un asiento enlazado desde `bet_funding`. |
 | ticket | Apuesta registrada en `bets`, compuesta por una o más legs. |
 | stake | Importe arriesgado por ticket. En MVP no supera el 40% del cash disponible. |
 | retorno | Importe acreditado tras liquidación o cashout. |
@@ -61,10 +62,10 @@ catalog_events + catalog_markets ----> bet_legs | recommendations
 | `users` | Perfil propio; admin gestiona roles | Existe. `id` referencia `auth.users`; roles `user`, `editor`, `admin`. Perfil automático implementado. |
 | `banks` | `user_id` | Existe. Un bank pertenece a un usuario y usa `EUR`, `USD` o `ARS`. Creación implementada. |
 | `bank_pockets` | Hereda titularidad de bank | Existe. Exactamente un pocket por tipo y bank mediante índice único. |
-| `transactions` | Hereda titularidad de bank | Existe. Ledger futuro para movimientos, reservas, retornos y transferencias. Solo asientos iniciales implementados. |
-| `bets` | Hereda titularidad de bank | Existe. Ticket futuro; puede enlazar una meta y una transacción de reserva. |
-| `bet_legs` | Hereda titularidad de bet | Existe. Leg futura; puede referenciar evento y mercado normalizados. |
-| `bet_funding` | Hereda titularidad de bet | Existe. Desglose futuro por pocket, una fila por tipo. |
+| `transactions` | Hereda titularidad de bank | Existe. Depósitos, retiros, transferencias y reservas de apuesta están implementados. |
+| `bets` | Hereda titularidad de bank | Existe. Creación completa implementada; el ticket solo queda `open` después de reservar todo su funding. |
+| `bet_legs` | Hereda titularidad de bet | Existe. Referencias `normalized|manual` explícitas implementadas; filas legacy se conservan. |
+| `bet_funding` | Hereda titularidad de bet | Existe. Cada pocket positivo crea una fila enlazada a su `bet_reserve`. |
 | `bet_cashouts` | Hereda titularidad de bet | Existe. Evidencia futura de cashout y relación de división. |
 | `audit_logs` | Actor y entidad auditada | Existe. Inmutable; ownership de lectura depende de actor, entidad propia o admin. |
 | `goals` | `user_id`, y bank del mismo titular | Existe. Flujo futuro. |
@@ -135,20 +136,31 @@ Usuario -> validar origen/destino -> misma titularidad y divisa
 - **Implementado:** misma clave idempotente no puede duplicar ninguno de los dos asientos.
 - **Confirmado:** bank ajeno o inexistente devuelve `404 BANK_NOT_FOUND` genérico para no permitir enumeración.
 
-### Creación, financiación y liquidación de ticket — Planificado
+### Creación y financiación de ticket — Implementado en Fase 4G
 
 ```text
-Ticket draft -> validar legs, cuota, riesgo y funding -> reserva -> open
-open -> liquidar resultado -> retorno y auditoría -> settled|void
-open -> cashout parcial -> ticket cerrado + ticket abierto derivado
+POST /api/bets -> validar ticket, legs, stake, funding e idempotencia
+               -> RPC única: locks + ticket + legs + funding + reservas
+               -> open
 ```
 
-- **Confirmado:** al menos una leg, cuota mayor que 1 y stake máximo 40% del cash disponible.
-- **Confirmado:** financiación admite `cash|bonus|freebet`; su suma debe ser igual al stake.
-- **Adoptado:** se rechaza toda cantidad con más de dos decimales; no se corrige por redondeo.
-- **Adoptado:** un ticket solo alcanza `open` después de persistir reservas y `bet_funding` en la misma unidad atómica.
-- **Adoptado:** `void` devuelve el stake a cada pocket financiador. `won`, `lost`, `half_won` y `half_lost` liquidan cada aportación de forma proporcional, sin conversión entre pockets salvo freebet ganada.
-- **Adoptado:** cash y bonus devuelven respectivamente `aportación × cuota`; freebet ganada devuelve solo `aportación × (cuota - 1)` a `cash`. `half_won` devuelve media aportación más media aportación ganadora; `half_lost` devuelve media aportación. Si un asiento calculado supera dos decimales, el ticket o liquidación se rechaza: no se redondea.
+- **Implementado:** BFF por cookie; `POST /api/bets` exige `Idempotency-Key` UUID. Creación nueva responde `201`, replay equivalente `200` y reutilización con payload distinto `409`.
+- **Confirmado:** 1..20 legs; cuota de ticket y leg mayor que 1 con máximo cuatro decimales.
+- **Implementado:** cada leg declara `referenceType=normalized|manual`. Normalized exige `eventId+marketId`, evento `scheduled|live`, mercado `active` y pertenencia del mercado al evento; manual exige `eventName+marketName` e IDs nulos.
+- **Confirmado:** stake discriminado por amount positivo con máximo dos decimales o level `0.1..20.0` en pasos de `0.1`.
+- **Confirmado:** fórmula por nivel `cash previo × (level/20) × 0.40`; si produce más de dos decimales, se rechaza sin redondeo ni ajuste.
+- **Confirmado:** stake máximo exacto del 40% del cash previo, independiente de si se financia con cash, bonus, freebet o mix.
+- **Confirmado:** funding obligatorio con montos `>=0`, al menos uno positivo y suma decimal exacta igual al stake. Se permiten 100% cash, 100% bonus, 100% freebet y mixes.
+- **Implementado:** cada funding positivo crea una transacción `bet_reserve` y un `bet_funding` enlazado; los ceros no generan filas.
+- **Implementado:** ticket, legs, funding, débitos, reservas e idempotencia se crean en una RPC única y atómica. El ticket solo alcanza `open` al final.
+- **Implementado:** RPC `SECURITY INVOKER` ejecutada por `service_role`; RLS conserva lectura por ownership y `authenticated` carece de DML directo y `EXECUTE` sobre la RPC.
+- **Fuera de Fase 4G:** liquidación, retorno de freebet y cashout.
+
+#### Preflight completado para Fase 4G
+
+- Migration RBAC local reconciliada con remoto como `20260816145742_add_admin_role_management.sql`.
+- Las 4 bets legacy sin funding, reserva ni idempotencia permanecen intactas; constraints nuevas exigen la forma Fase 4G a filas nuevas sin validar retrospectivamente las legacy.
+- No se aplicó borrado, backfill ni transformación de filas legacy.
 
 ### Catálogo normalizado y fallback manual — Diseñado para Fase 4F
 
@@ -216,7 +228,7 @@ user -> follow -> recommendation_follows + payload prefill -> revisión manual -
 | --- | --- |
 | Bank/pockets | `bank creado -> cash|bonus|freebet disponibles`. Un pocket no se elimina individualmente y nunca baja de cero. Cierre de bank no está definido para MVP. |
 | Transaction | `solicitada -> aplicada` o `rechazada`. Solo `aplicada` persiste en ledger. Transferencia aplicada crea dos filas; no existe compensación silenciosa. |
-| Bet | `draft -> open -> settled|void|cashout`; `settled` requiere `result=won|lost|half_won|half_lost`. `open -> cashout_partial` crea ticket cerrado y ticket derivado `open`. `status` modela ciclo de vida; `result` modela resultado. |
+| Bet | Fase 4G implementa `creación atómica -> open`; ningún ticket nuevo queda `open` sin funding y reservas completos. Transiciones posteriores pertenecen a otras fases. |
 | Goal | `active -> completed|cancelled`. Ambos estados fijan `closed_at`; no se recalcula una meta cerrada. |
 | Recommendation | `draft -> published -> inactive`. Solo `published` se muestra a users y admite follow. |
 
@@ -238,6 +250,7 @@ user -> follow -> recommendation_follows + payload prefill -> revisión manual -
 | Trigger de perfil | `20260727155541_create_auth_user_profile.sql` | Tras insertar en `auth.users`, inserta `public.users` con email en minúsculas y rol `user`. |
 | RPC atómica de bank | `20260728154428_create_banks_with_pockets.sql` | Valida entrada, crea bank, tres pockets, tres asientos iniciales y devuelve saldos; toda la llamada revierte ante error. |
 | RPC atómica de movimientos | `20260803174121_record_cash_transactions.sql` | Bloquea cash, aplica depósito/retiro, inserta ledger y auditoría, y conserva resultado idempotente. |
+| RPC atómica de tickets | `20260816192251_create_bet_with_funding.sql` | Bloquea idempotencia, bank y pockets; crea ticket, legs, reservas y funding; abre el ticket solo al completar todo. |
 
 No hay cron, webhook de negocio ni integración externa implementados.
 
@@ -250,7 +263,7 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Saldo operativo cash | FR-006, SL-8 | `bank_pockets` | Implementado: `/api/banks/{bankId}`, `balance.ts`, detalle bank |
 | Depósito/retiro cash | FR-008, SL-10 | `transactions`, `transaction_idempotencies`, `20260803174121` | Implementado: `/api/transactions`, formulario en detalle de bank |
 | Transferencia cash misma divisa | FR-007, SL-9 | `transactions`, `transaction_idempotencies`, `20260803183644` | Implementado: `/api/banks/{bankId}/transfer`, formulario en detalle bank |
-| Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding` | Futuro: `/api/bets` |
+| Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding`, `bet_idempotencies`, `transactions`; `20260816192251`, `20260816192515` | Implementado: `POST /api/bets`, `/dashboard/bets/new` |
 | Liquidación, cashout y auditoría | FR-011..013, SL-14..16 | `bet_cashouts`, `audit_logs` | Futuro: `/api/bets/{id}/settle|cashout` |
 | Catálogo manual y normalizado | FR-014..016, SL-18..20 | tablas `catalog_*` | Futuro: `/api/catalog/*` |
 | Meta y riesgo | FR-017..021, SL-22..26 | `goals`, `goal_history`, `risk_limits` | Futuro: `/api/goals/*` |
@@ -268,6 +281,9 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Depósitos y retiros MVP solo cash | Confirmado e implementado |
 | Transferencias MVP solo cash, mismo usuario y misma divisa | Confirmado e implementado |
 | Idempotencia en depósitos/retiros | Confirmado e implementado |
+| Fase 4G crea ticket, funding y reservas en una RPC atómica | Confirmado e implementado |
+| Funding cash/bonus/freebet puro o mixto, con suma exacta | Confirmado e implementado |
+| Cap del 40% sobre cash previo, sin importar funding | Confirmado e implementado |
 
 ## 10. Decisiones adoptadas y pendientes
 
@@ -283,10 +299,13 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Límite mínimo activo: stake máximo 40% de cash; cuota máxima y pérdida diaria son opt-in del usuario | Adoptada | Evita sugerencias inseguras por defecto | Goals/Risk |
 | ICP v1 = `{ version: 1, score: 0..100, factors: string[] }`; se ordena por `published_at`, no por score | Adoptada | Hace el feed explicable sin ranking opaco | Recommendations |
 | Catálogo MVP es local y curado; ante ausencia de dato se usa entrada manual. Integración externa queda fuera del MVP actual | Adoptada | Elimina dependencia externa no implementada | Catalog |
+| Stake level `0.1..20.0` usa `cash × (level/20) × 0.40`; resultados con más de dos decimales se rechazan | Adoptada | Hace cálculo reproducible sin redondeo | Bets Fase 4G |
+| Legs distinguen referencias normalizadas y manuales mediante discriminante obligatorio | Adoptada | Evita inferir semántica desde IDs nulos | Bets Fase 4G |
+| Una reserva `bet_reserve` por funding positivo y enlace obligatorio desde `bet_funding` | Adoptada | Mantiene trazabilidad por pocket | Bets Fase 4G |
 
 ### Decisiones pendientes
 
-No hay decisiones pendientes que bloqueen el siguiente tramo: movimientos de cash, después catálogo local y creación de tickets. Cualquier cambio posterior a estas decisiones requiere actualizar primero este mapa y la trazabilidad afectada.
+No quedan decisiones funcionales abiertas en Fase 4G. Implementación y migrations están aplicadas; quedan pendientes la ejecución E2E manual, una prueba de concurrencia multisesión y el flujo normalized end-to-end cuando exista catálogo de aplicación. Las 4 bets legacy permanecen sin borrado ni backfill.
 
 ## 11. Informe de validación
 
@@ -294,13 +313,13 @@ No hay decisiones pendientes que bloqueen el siguiente tramo: movimientos de cas
 - Todas las entidades obligatorias existen en schema local y remoto; su flujo queda marcado implementado o futuro.
 - Cada flujo declara estado.
 - Hechos, reglas confirmadas, decisiones adoptadas y límites no resueltos están separados.
-- Se preservan PRD/SRS/PBI cuando no contradicen evidencia; discrepancias quedan expuestas.
+- SL-12/SL-13, SRS/OpenAPI y este mapa quedan reconciliados con la implementación Fase 4G.
 
-## 12. Documentos que deben reconciliarse
+## 12. Reconciliación documental
 
-- `.context/SRS/api-contracts.yaml`: estados de bet, estrategia de meta, `marketId` de recomendaciones, auth cookie/bearer y rutas aún inexistentes.
-- `.context/SRS/functional-specs.md`: reglas cash-only, misma divisa, idempotencia y precisión transversal.
-- `.context/SRS/architecture-specs.md`: ERD y data flow frente a 17 tablas reales y API actual.
+- `.context/SRS/api-contracts.yaml`: reconciliado para `POST /api/bets`, stake/legs discriminados, funding, cookie e idempotencia.
+- `.context/SRS/functional-specs.md`: reconciliado FR-009/FR-010 para creación y reservas Fase 4G.
+- `.context/SRS/architecture-specs.md`: reconciliado flujo atómico, grants/RLS y preflight Fase 4G.
 - `.context/dev-roadmap.md` y `.context/master-implementation-plan.md`: baseline de APIs y estado de auth/banks ya implementados.
 - PBI SL-9 y SL-10: restricciones cash-only, divisa y métodos.
-- PBI SL-12 a SL-16, SL-22 a SL-26 y SL-28 a SL-31: decisiones de liquidación, cashout, riesgo, ICP y métricas.
+- PBI SL-12/SL-13: reconciliado; SL-14..16 y dominios posteriores conservan sus fases independientes.

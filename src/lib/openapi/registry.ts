@@ -105,6 +105,10 @@ ${apiBaseUrl}
         description: 'Owner-scoped bank creation and balance endpoints',
       },
       {
+        name: 'Bets',
+        description: 'Atomic bet ticket creation and funding reservations',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
       },

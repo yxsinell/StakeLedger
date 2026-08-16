@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, LayoutDashboard, Users } from 'lucide-react';
+import { Banknote, LayoutDashboard, TicketCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -37,6 +37,12 @@ const navItems = [
     url: '/dashboard/banks',
     icon: Banknote,
     testId: 'banks_nav',
+  },
+  {
+    title: 'Tickets',
+    url: '/dashboard/bets/new',
+    icon: TicketCheck,
+    testId: 'bets_nav',
   },
 ];
 

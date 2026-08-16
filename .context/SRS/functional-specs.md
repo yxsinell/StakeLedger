@@ -1,7 +1,7 @@
 # Functional Specs - StakeLedger
 
-**Fecha:** 2026-02-28
-**Version:** 1.0
+**Fecha:** 2026-08-16
+**Version:** 1.1
 **Autor:** Equipo StakeLedger
 
 ---
@@ -81,19 +81,25 @@
 
 ## FR-009: El sistema debe registrar tickets con legs y stake calculado
 
-- **Relacionado a:** EPIC-SL-03, US 3.1
-- **Input:** bank_id, legs[], odds, stake_amount o stake_level
-- **Processing:** calcular stake o monto, validar cap 40% cash, reservar fondos
-- **Output:** bet_id, stake_level, stake_amount
-- **Validations:** legs >= 1, odds > 1.0, monto <= cap
+- **Relacionado a:** EPIC-SL-11, SL-12
+- **Input:** `bankId`, `legs[1..20]`, cuota de ticket, `stake` discriminado, `funding` y `Idempotency-Key` UUID
+- **Processing:** autenticar por cookie BFF; validar referencias de legs; calcular stake por importe o `cash previo × (level/20) × 0.40`; validar cap; crear ticket, legs, funding y reservas en una RPC única y atómica; cambiar a `open` solo al finalizar todas las reservas
+- **Output:** agregado del ticket con legs, stake y funding; `201` si se crea o `200` en replay equivalente
+- **Validations:** cuotas de ticket y leg `>1` con máximo cuatro decimales; stake amount positivo con máximo dos decimales o level `0.1..20.0` en pasos de `0.1`; rechazo si el cálculo excede dos decimales; stake `<=40%` del cash previo sin importar funding; nunca redondear ni ajustar
+- **Leg normalized:** `referenceType=normalized`, `eventId` y `marketId` obligatorios; el mercado pertenece al evento
+- **Leg manual:** `referenceType=manual`, `eventName` y `marketName` obligatorios; IDs normalizados nulos
+- **Errores:** `400` validación, `401` autenticación, `404` bank ajeno/inexistente genérico, `409` cap/saldo dinámico o conflicto idempotente, `500` inesperado
 
 ## FR-010: El sistema debe permitir mix de fondos en una apuesta
 
-- **Relacionado a:** EPIC-SL-03, US 3.2
-- **Input:** cash_amount, bonus_amount, freebet_amount
-- **Processing:** validar sumatoria = stake_amount, aplicar reglas de freebet
-- **Output:** desglose de financiacion
-- **Validations:** montos >= 0, reglas de retorno configuradas
+- **Relacionado a:** EPIC-SL-11, SL-13
+- **Input:** objeto obligatorio `funding={cash, bonus, freebet}` dentro de `POST /api/bets`
+- **Processing:** validar igualdad decimal exacta con stake; bloquear pockets; debitar cada aporte positivo; crear una transacción `bet_reserve` y una fila `bet_funding` enlazada por aporte; ejecutar todo junto con FR-009
+- **Output:** desglose de financiación y reservas dentro del agregado del ticket
+- **Validations:** cada monto `>=0` con máximo dos decimales, al menos uno `>0`, suma exacta igual al stake y saldo suficiente por pocket
+- **Combinaciones:** 100% cash, 100% bonus, 100% freebet y mixes permitidos
+- **Límites:** no existe tolerancia, redondeo, ajuste, conversión entre pockets ni endpoint `/fund`
+- **Fuera de Fase 4G:** reglas de retorno de freebet, liquidación y cashout
 
 ## FR-011: El sistema debe liquidar apuestas con resultados completos y parciales
 

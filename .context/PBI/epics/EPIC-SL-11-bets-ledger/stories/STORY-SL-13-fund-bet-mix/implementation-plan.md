@@ -1,95 +1,90 @@
-# Implementation Plan: STORY-SL-13 - Financiar apuesta con mix de fondos
+# Implementation Plan: SL-13 - Funding mixto y reservas
 
-## Fuentes
+## Fuentes canónicas
 
-- Story: `story.md`
-- Acceptance test plan: `acceptance-test-plan.md`
-- Roadmap Fase 2A: `.context/dev-roadmap.md`
-- Gap analysis Fase 2A: `.context/reports/phase-2a-gap-analysis.md`
-- SRS: `.context/SRS/functional-specs.md` FR-010
-- API contract: `.context/SRS/api-contracts.yaml` `BetCreateRequest` y ruta pendiente para funding si se separa
+- Story y acceptance test plan de esta carpeta.
+- Plan SL-12, que define API, RPC, seguridad y preflight compartidos.
+- `.context/SRS/api-contracts.yaml` (`BetCreateRequest.funding`).
+- `.context/SRS/functional-specs.md` (FR-010).
+- `.context/business-data-map.md`.
 
-## Estado Actual Verificado
+## Decisión de integración
 
-- No existe endpoint de funding separado.
-- `bets` no tiene desglose de funding ni estado de financiacion.
-- `transactions` registra `pocket_type`, pero no liga una reserva a una bet.
-- `bank_pockets` existe con pockets `cash|bonus|freebet`, pero no hay reglas de freebet configurables.
-- Fase 2A marco SL-13 como migration-first.
+SL-13 no implementa un flujo posterior. Funding se recibe obligatoriamente en `POST /api/bets` y se persiste en la misma RPC atómica que ticket y legs. No existe endpoint `/api/bets/{betId}/fund`.
 
-## Dependencias
+## Preflight compartido completado
 
-- Depende de Identity para usuario autenticado.
-- Depende de Banks SL-7/SL-8/SL-10 para pockets, saldo disponible y transaction semantics.
-- Depende de SL-12 para ticket con `stake_amount` definido.
+Resultado del preflight de SL-12:
 
-## Alcance
+- Migration RBAC remota y local reconciliada como `20260816145742`.
+- Las 4 bets legacy sin reservas permanecen intactas.
+- No se aplicó borrado ni backfill dentro de Fase 4G.
 
-- Permitir financiar una apuesta con montos cash, bonus y freebet.
-- Validar que la suma exacta del funding sea igual a `stake_amount`.
-- Reservar fondos por pocket y registrar movimientos trazables.
-- Bloquear freebet si no existen reglas de retorno configuradas.
+## Modelo de datos
 
-## Archivos a Tocar
+- `bet_funding`: una fila por pocket positivo y ticket.
+- Constraint único por `bet_id + pocket_type`.
+- `amount > 0`, máximo dos decimales.
+- `reserved_transaction_id` obligatorio y único, FK a la transacción `bet_reserve` correspondiente.
+- Los ceros permanecen solo en payload; no se persisten como funding.
+- Transactions conservan `amount` positivo; `type=bet_reserve` expresa débito.
 
-- `src/app/api/bets/[betId]/fund/route.ts` si se aprueba endpoint separado.
-- `src/app/api/bets/route.ts` si funding queda dentro de create bet.
-- `src/lib/bets/funding-service.ts` - validacion y reserva por pocket.
-- `src/lib/bets/freebet-rules.ts` - reglas de retorno configurables.
-- `src/lib/bets/schemas.ts` - schema de funding mix.
-- `src/lib/banks/balance.ts` - saldo disponible por pocket.
-- `src/components/bets/funding-mix-form.tsx` - UI de mix.
-- `src/lib/openapi/schemas/bets.ts` - actualizar contrato si se agrega ruta.
+## Flujo RPC
 
-## DB/RLS Necesarios
+1. Recibir usuario, bank, ticket, stake, legs, funding y clave idempotente ya validados estructuralmente.
+2. Resolver idempotencia bajo lock.
+3. Bloquear bank y pockets `cash`, `bonus`, `freebet` en orden fijo.
+4. Leer cash previo y calcular stake/cap dentro de la transacción.
+5. Verificar suma exacta del funding y saldo de cada pocket positivo.
+6. Crear ticket y legs.
+7. Por cada pocket positivo, debitar saldo, crear `bet_reserve` y crear `bet_funding` enlazado.
+8. Marcar ticket `open`, guardar resultado idempotente y devolver agregado.
+9. Ante cualquier fallo, revertir toda la llamada.
 
-- Migration-first: requiere tabla o columnas nuevas para `bet_funding` (`bet_id`, `pocket_type`, `amount`, `reserved_transaction_id`, `return_rule`).
-- Requiere constraint `amount >= 0` y uniqueness por `bet_id + pocket_type`.
-- Requiere modelo aprobado para freebet return rules; sin esto SL-14 no puede liquidar correctamente.
-- Requiere transaccion atomica para descontar pockets y crear ledger por pocket.
-- RLS: owner de bet/bank puede leer funding; otros usuarios no.
+## Seguridad
 
-## API Necesaria
+- RPC `SECURITY INVOKER`, ejecutada exclusivamente mediante cliente `service_role` del BFF.
+- `EXECUTE` solo para `service_role`; sin acceso de `anon` o `authenticated`.
+- Revocar DML directo de `authenticated` sobre `bet_funding` y demás tablas financieras modificadas por la RPC.
+- RLS activa para lectura propia derivada de bet y bank.
+- Probar que editor/admin tampoco pueden operar dinero ajeno por su rol.
 
-- Opcion A: funding incluido en `POST /api/bets` como `{ funding: { cash, bonus, freebet } }`.
-- Opcion B: `POST /api/bets/{betId}/fund` con payload de funding.
-- Success: `200/201` con desglose persistido y balances actualizados.
-- Errors: `400` suma incorrecta/montos negativos, `403` bet ajena, `409/422` reglas freebet ausentes o saldo insuficiente.
+## API y errores
 
-## UI Necesaria
+- Funding requerido con las tres propiedades `cash`, `bonus`, `freebet`.
+- `400`: estructura, precisión, negativos, todos cero o suma distinta.
+- `401`: sesión inválida.
+- `404`: bank inexistente o ajeno, mensaje genérico.
+- `409`: cap/saldo dinámico, conflicto concurrente o clave reutilizada con payload distinto.
+- `500`: error inesperado sin detalles internos.
+- `201`: agregado nuevo; `200`: replay equivalente.
 
-- Inputs para cash, bonus y freebet con sumatoria en vivo.
-- Mostrar saldo disponible por pocket y error de saldo insuficiente.
-- Bloquear submit si sumatoria no coincide con stake.
-- `data-testid`: `fundingMixForm`, `cash_amount_input`, `bonus_amount_input`, `freebet_amount_input`, `funding_total_label`, `funding_sum_error`, `submit_funding_button`.
+## UI
 
-## Validaciones Zod
+- Integrar funding en el mismo formulario de `/dashboard/bets/new`.
+- Mostrar saldos por pocket y total exacto.
+- Permitir cash, bonus y freebet puros o mezclados.
+- No mostrar reglas de retorno promocional ni bloquear freebet por su liquidación futura.
+- Mantener `data-testid` estáticos definidos en ATP.
 
-- `betId`: UUID.
-- `cashAmount`, `bonusAmount`, `freebetAmount`: number finite, >= 0.
-- Sumatoria debe igualar `stakeAmount` con precision/tolerancia aprobada.
-- Al menos un monto > 0.
-- Si `freebetAmount > 0`, reglas freebet deben existir.
+## Pruebas
 
-## Tests Minimos
+- Unitarias: importes, igualdad decimal exacta, al menos uno positivo y ausencia de redondeo.
+- API: mixes puros/mixtos y todos los códigos del contrato.
+- DB: correspondencia uno a uno entre funding positivo y reserva.
+- RLS/grants: lectura propia y denegación de DML/acceso cruzado.
+- Atomicidad: rollback después de cada pocket.
+- Concurrencia: consumo simultáneo de uno o varios pockets.
+- Idempotencia: replay equivalente y payload de funding distinto.
+- E2E manual: creación con leg manual y mix que incluya freebet.
 
-- Unit: suma exacta, montos negativos, todos cero, tolerancia de redondeo.
-- Unit: freebet sin reglas bloquea.
-- API: funding valido reserva cada pocket y registra ledger.
-- API: saldo insuficiente por pocket no cambia DB.
-- E2E: UI valida suma y confirma funding.
+## Archivos previstos
 
-## Criterios de Cierre
+Los mismos de SL-12. No crear route, schema, servicio o formulario independiente de `/fund` salvo componentes internos reutilizables dentro del formulario de creación.
 
-- AC SL-13 cubiertos: mix valido, sumatoria incorrecta, freebet sin reglas.
-- Modelo funding permite liquidar SL-14 sin inferencias ambiguas.
-- Funding y ledger quedan atomicos.
-- Supabase types actualizados si cambia schema.
-- `bun run repo:check` pasa.
+## Criterios de cierre
 
-## Decisiones Abiertas
-
-- Endpoint separado vs funding dentro de create bet.
-- Reglas exactas de retorno de freebet.
-- Precision/tolerancia de sumatoria.
-- Se permite 100% bonus o 100% freebet.
+- Suma exacta y cap se evalúan con valores bloqueados dentro de la RPC.
+- Cada aporte positivo queda reservado y enlazado una sola vez.
+- Ticket solo queda `open` con funding completo.
+- Ningún comportamiento de settlement o cashout se implementa en Fase 4G.
