@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, LayoutDashboard, TicketCheck, Users } from 'lucide-react';
+import { Banknote, BookOpen, LayoutDashboard, Settings2, TicketCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -43,6 +43,12 @@ const navItems = [
     url: '/dashboard/bets/new',
     icon: TicketCheck,
     testId: 'bets_nav',
+  },
+  {
+    title: 'Catálogo',
+    url: '/dashboard/catalog',
+    icon: BookOpen,
+    testId: 'catalog_nav',
   },
 ];
 
@@ -107,12 +113,27 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuItem>
                 );
               })}
+              {(profile?.role === 'admin' || profile?.role === 'editor') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/dashboard/admin/catalog'}
+                    tooltip="Gestionar catálogo"
+                    data-testid="admin_catalog_nav"
+                  >
+                    <Link href="/dashboard/admin/catalog">
+                      <Settings2 className="h-4 w-4" />
+                      <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar catálogo</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {profile?.role === 'admin' && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Administración" data-testid="admin_users_nav">
+                  <SidebarMenuButton asChild isActive={pathname === '/dashboard/admin/users'} tooltip="Gestionar usuarios" data-testid="admin_users_nav">
                     <Link href="/dashboard/admin/users">
                       <Users className="h-4 w-4" />
-                      <span className={state === 'collapsed' ? 'sr-only' : ''}>Administración</span>
+                      <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar usuarios</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

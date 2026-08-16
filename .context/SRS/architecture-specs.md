@@ -157,6 +157,8 @@ erDiagram
   }
 ```
 
+`catalog_competitions.sport` es obligatorio para entidades normalizadas y nullable únicamente para entradas con `normalization_status='manual'`.
+
 ---
 
 ## 3. Tech Stack Justification

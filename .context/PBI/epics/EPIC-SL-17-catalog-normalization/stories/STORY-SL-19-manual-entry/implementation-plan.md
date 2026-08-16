@@ -44,7 +44,7 @@
 - Usar `catalog_teams` y `catalog_competitions` existentes; `name` almacena `rawText` trimmeado.
 - Enum exacto de `normalization_status`: `manual`.
 - `created_by` registra el usuario que crea la entrada manual.
-- RLS nuevo requerido: authenticated puede insertar filas `manual`; editor/admin mantiene normalizadas y alias.
+- Writes directos de catálogo están revocados para `authenticated`; el BFF autenticado crea filas `manual` mediante RPC service-role validada.
 - Preflight completado: historial RBAC remoto/local reconciliado como `20260816145742_add_admin_role_management.sql`.
 - No se requiere dedupe global para manual MVP; duplicados manuales son trabajo editorial posterior.
 
