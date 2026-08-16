@@ -236,7 +236,7 @@
 
 ## Action Required
 
-**Decisiones cerradas:** `400` entrada inválida, saldo insuficiente, mismo bank o distinta divisa; `401` sin sesión; `403` bank ajeno; `404` bank inexistente; `409` reutilización idempotente conflictiva.
+**Decisiones cerradas:** `400` entrada inválida, saldo insuficiente, mismo bank o distinta divisa; `401` sin sesión; `404 BANK_NOT_FOUND` genérico para bank ajeno o inexistente; `409` reutilización idempotente conflictiva.
 
 ---
 

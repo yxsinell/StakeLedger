@@ -133,7 +133,7 @@ Usuario -> validar origen/destino -> misma titularidad y divisa
 - **Implementado:** endpoint BFF `POST /api/banks/{bankId}/transfer`, solo `cash`, banks propios distintos y misma divisa.
 - **Adoptado:** `transfer_debit` y `transfer_credit` son pareja indivisible; `related_transaction_id` los enlaza mutuamente.
 - **Implementado:** misma clave idempotente no puede duplicar ninguno de los dos asientos.
-- **Confirmado:** bank ajeno devuelve `403 BANK_FORBIDDEN`; bank inexistente devuelve `404 BANK_NOT_FOUND`.
+- **Confirmado:** bank ajeno o inexistente devuelve `404 BANK_NOT_FOUND` genérico para no permitir enumeración.
 
 ### Creación, financiación y liquidación de ticket — Planificado
 

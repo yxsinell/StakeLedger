@@ -173,14 +173,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: Destination bank belongs to another user.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Source or destination bank does not exist.
+          description: Source or destination bank does not exist or is not owned by the current user.
           content:
             application/json:
               schema:
