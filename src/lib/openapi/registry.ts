@@ -109,6 +109,10 @@ ${apiBaseUrl}
         description: 'Atomic bet ticket creation and funding reservations',
       },
       {
+        name: 'Catalog',
+        description: 'Local catalog search, manual entry, and maintenance',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
       },
