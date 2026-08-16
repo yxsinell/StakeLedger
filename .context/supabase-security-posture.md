@@ -1,6 +1,6 @@
 # Postura de Seguridad Supabase
 
-> Actualizado: 2026-08-03. Evidencia: advisors del proyecto remoto `ziqbjajprkoukezhgidr` y 13 migrations en `supabase/migrations/`.
+> Actualizado: 2026-08-16. Evidencia: advisors del proyecto remoto `ziqbjajprkoukezhgidr` y 21 migrations locales/remotas sincronizadas.
 
 ## Principios operativos
 
@@ -29,6 +29,8 @@ La protección usa comprobación contra Have I Been Pwned. Es una configuración
 | `create_bank_with_pockets` SECURITY DEFINER ejecutable por `authenticated` | Exposición intencional con superficie a vigilar | Aceptado temporalmente: valida `auth.uid()`, parámetros y usa search path seguro. La ruta BFF y el cliente autenticado necesitan ejecutarla. |
 | `record_cash_transaction` SECURITY DEFINER ejecutable por `authenticated` | Exposición intencional con superficie a vigilar | Aceptado: valida `auth.uid()`, titularidad, entrada e idempotencia; usa `search_path=''` y solo `authenticated` tiene `EXECUTE`. |
 | `transaction_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede ningún privilegio a `anon` ni `authenticated`; solo la RPC SECURITY DEFINER puede leer o escribir la tabla. |
+| `create_bet_with_funding` SECURITY INVOKER | Superficie BFF restringida | Aceptado: `EXECUTE` solo para `service_role`; `anon` y `authenticated` no pueden invocarla ni escribir directamente bets, legs o funding. |
+| `bet_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede privilegios a `anon` ni `authenticated`; solo `service_role` la usa dentro de la RPC atómica. |
 | `is_admin` e `is_catalog_editor` SECURITY DEFINER ejecutables por `authenticated` | Helper RLS intencional | Aceptado temporalmente: devuelven booleano del usuario actual y permiten políticas RLS. |
 | FKs sin índice e índices sin uso | Rendimiento, no seguridad | Diferir hasta que los flujos correspondientes tengan tráfico y planes de consulta reales. |
 
@@ -47,7 +49,7 @@ Deshabilitar GraphQL no deshabilita REST ni RPCs REST. Guías: <https://supabase
 
 ## Estrategia SECURITY DEFINER
 
-No revocar `EXECUTE` de las cuatro funciones actuales mientras las rutas BFF empleen token autenticado: la revocación rompería creación de banks, movimientos y evaluación RLS.
+No revocar `EXECUTE` de funciones existentes sin verificar primero qué rutas BFF o policies las consumen. `create_bet_with_funding` es la excepción explícita: solo `service_role` debe ejecutarla.
 
 Para cada función privilegiada futura:
 
@@ -60,7 +62,8 @@ Guías: <https://supabase.com/docs/guides/database/database-advisors?queryGroups
 
 ## Verificación previa a una migration de seguridad
 
-- Confirmar las 13 versiones locales contra remoto.
+- Confirmar las 21 versiones locales contra remoto.
 - Probar acceso BFF de usuario propio y rechazo cruzado.
 - Probar RPC de creación de bank si se modifican grants o funciones.
+- Probar RPC de creación de ticket, idempotencia y rollback si se modifican grants o tablas de bets.
 - Revisar advisors de seguridad y rendimiento tras aplicación.

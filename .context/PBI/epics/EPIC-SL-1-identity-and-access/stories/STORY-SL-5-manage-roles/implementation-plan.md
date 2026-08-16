@@ -88,6 +88,6 @@
 
 ## Implementación realizada
 
-- Migration `20260816170000_add_admin_role_management.sql`: `role_version`, auditoría `user/role_changed`, revocación de update directo y RPC exclusiva service-role.
+- Migration `20260816145742_add_admin_role_management.sql`: `role_version`, auditoría `user/role_changed`, revocación de update directo y RPC exclusiva service-role.
 - Rutas BFF administrativas, pantalla `/dashboard/admin/users` y navegación admin implementadas.
 - Tipos Supabase regenerados. Bootstrap de primer admin queda manual y fuera de esta story ejecutable.

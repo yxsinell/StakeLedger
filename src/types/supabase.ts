@@ -165,7 +165,7 @@ export type Database = {
           created_at: string
           id: string
           pocket_type: string
-          reserved_transaction_id: string | null
+          reserved_transaction_id: string
         }
         Insert: {
           amount: number
@@ -173,7 +173,7 @@ export type Database = {
           created_at?: string
           id?: string
           pocket_type: string
-          reserved_transaction_id?: string | null
+          reserved_transaction_id: string
         }
         Update: {
           amount?: number
@@ -181,7 +181,7 @@ export type Database = {
           created_at?: string
           id?: string
           pocket_type?: string
-          reserved_transaction_id?: string | null
+          reserved_transaction_id?: string
         }
         Relationships: [
           {
@@ -200,32 +200,80 @@ export type Database = {
           },
         ]
       }
+      bet_idempotencies: {
+        Row: {
+          bet_id: string
+          created_at: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Insert: {
+          bet_id: string
+          created_at?: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Update: {
+          bet_id?: string
+          created_at?: string
+          idempotency_key?: string
+          request_payload?: Json
+          response_payload?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bet_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_idempotencies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bet_legs: {
         Row: {
           bet_id: string
           event_id: string | null
+          event_name: string | null
           id: string
           market: string
           market_id: string | null
           odds: number
+          reference_type: string | null
           selection: string
         }
         Insert: {
           bet_id: string
           event_id?: string | null
+          event_name?: string | null
           id?: string
           market: string
           market_id?: string | null
           odds: number
+          reference_type?: string | null
           selection: string
         }
         Update: {
           bet_id?: string
           event_id?: string | null
+          event_name?: string | null
           id?: string
           market?: string
           market_id?: string | null
           odds?: number
+          reference_type?: string | null
           selection?: string
         }
         Relationships: [
@@ -262,13 +310,12 @@ export type Database = {
           idempotency_key: string | null
           odds: number
           profit_amount: number | null
-          reserved_transaction_id: string | null
           result: string | null
           return_amount: number | null
           settled_at: string | null
           settlement_amount: number | null
           stake_amount: number
-          stake_level: string | null
+          stake_level: number | null
           status: string
         }
         Insert: {
@@ -280,13 +327,12 @@ export type Database = {
           idempotency_key?: string | null
           odds: number
           profit_amount?: number | null
-          reserved_transaction_id?: string | null
           result?: string | null
           return_amount?: number | null
           settled_at?: string | null
           settlement_amount?: number | null
           stake_amount: number
-          stake_level?: string | null
+          stake_level?: number | null
           status: string
         }
         Update: {
@@ -298,13 +344,12 @@ export type Database = {
           idempotency_key?: string | null
           odds?: number
           profit_amount?: number | null
-          reserved_transaction_id?: string | null
           result?: string | null
           return_amount?: number | null
           settled_at?: string | null
           settlement_amount?: number | null
           stake_amount?: number
-          stake_level?: string | null
+          stake_level?: number | null
           status?: string
         }
         Relationships: [
@@ -320,13 +365,6 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bets_reserved_transaction_id_fkey"
-            columns: ["reserved_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1042,6 +1080,20 @@ export type Database = {
           p_initial_cash: number
           p_initial_freebet: number
           p_name: string
+        }
+        Returns: Json
+      }
+      create_bet_with_funding: {
+        Args: {
+          p_actor_user_id: string
+          p_bank_id: string
+          p_funding: Json
+          p_idempotency_key: string
+          p_legs: Json
+          p_odds: number
+          p_stake_amount: number
+          p_stake_level: number
+          p_stake_type: string
         }
         Returns: Json
       }

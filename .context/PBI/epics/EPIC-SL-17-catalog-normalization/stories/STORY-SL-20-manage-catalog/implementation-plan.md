@@ -53,7 +53,7 @@
 - Alias normalizado con `lower(trim(alias))`, unico por entidad destino.
 - Concurrencia MVP: last-write-wins documentado; no se añade versionado hasta que haya edición multi-admin real.
 - RLS: lectura para usuarios autenticados; writes de mantenimiento solo editor/admin; `user` bloqueado.
-- Preflight antes de crear migrations: reconciliar historial RBAC remoto/local (`20260816145742_add_admin_role_management` remoto vs `20260816170000_add_admin_role_management.sql` local) para evitar drift.
+- Preflight completado: historial RBAC remoto/local reconciliado como `20260816145742_add_admin_role_management.sql`.
 
 ## API Necesaria
 
