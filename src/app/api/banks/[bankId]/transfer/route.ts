@@ -8,7 +8,7 @@ import {
   TransferCreateRequestSchema,
 } from '@/lib/banks/schemas';
 import { transferCash, TransferServiceError } from '@/lib/banks/service';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { IdempotencyKeySchema } from '@/lib/transactions/schemas';
 
 interface RouteContext {
@@ -17,10 +17,6 @@ interface RouteContext {
 
 const mapTransferError = (error: unknown) => {
   if (error instanceof TransferServiceError) {
-    if (error.message === 'BANK_FORBIDDEN') {
-      return codedErrorResponse('Bank access is forbidden', 'BANK_FORBIDDEN', 403, 'toBankId');
-    }
-
     if (error.message === 'BANK_NOT_FOUND') {
       return codedErrorResponse('Bank not found', 'BANK_NOT_FOUND', 404);
     }
@@ -119,7 +115,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   try {
     const result = await transferCash(
-      supabase,
+      createServiceRoleClient(),
+      user.id,
       sourceBankId.data,
       transfer.data,
       idempotencyKey.data,

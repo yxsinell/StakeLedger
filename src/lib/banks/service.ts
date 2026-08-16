@@ -96,11 +96,13 @@ export const createBank = async (
 
 export const transferCash = async (
   supabase: SupabaseClient<Database>,
+  actorUserId: string,
   sourceBankId: string,
   input: TransferCreateInput,
   idempotencyKey: string,
 ) => {
   const { data, error } = await supabase.rpc('record_cash_transfer', {
+    p_actor_user_id: actorUserId,
     p_source_bank_id: sourceBankId,
     p_destination_bank_id: input.toBankId,
     p_amount: input.amount,

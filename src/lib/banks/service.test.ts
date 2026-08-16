@@ -14,6 +14,7 @@ describe('transferCash', () => {
       rpc: async (name: string, args: unknown) => {
         expect(name).toBe('record_cash_transfer');
         expect(args).toEqual({
+          p_actor_user_id: '550e8400-e29b-41d4-a716-446655440004',
           p_source_bank_id: sourceBankId,
           p_destination_bank_id: destinationBankId,
           p_amount: 10.5,
@@ -34,6 +35,7 @@ describe('transferCash', () => {
 
     const result = await transferCash(
       supabase,
+      '550e8400-e29b-41d4-a716-446655440004',
       sourceBankId,
       { toBankId: destinationBankId, amount: 10.5 },
       idempotencyKey,
@@ -51,13 +53,14 @@ describe('transferCash', () => {
     const supabase = {
       rpc: async () => ({
         data: null,
-        error: { message: 'BANK_FORBIDDEN', code: 'P0001' },
+        error: { message: 'BANK_NOT_FOUND', code: 'P0001' },
       }),
     } as unknown as SupabaseClient<Database>;
 
     try {
       await transferCash(
         supabase,
+        '550e8400-e29b-41d4-a716-446655440004',
         sourceBankId,
         { toBankId: destinationBankId, amount: 10.5 },
         idempotencyKey,

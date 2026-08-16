@@ -895,6 +895,48 @@ export type Database = {
           },
         ]
       }
+      transaction_idempotencies: {
+        Row: {
+          created_at: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          idempotency_key?: string
+          request_payload?: Json
+          response_payload?: Json
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_idempotencies_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_idempotencies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -949,48 +991,6 @@ export type Database = {
           },
         ]
       }
-      transaction_idempotencies: {
-        Row: {
-          created_at: string
-          idempotency_key: string
-          request_payload: Json
-          response_payload: Json
-          transaction_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          idempotency_key: string
-          request_payload: Json
-          response_payload: Json
-          transaction_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          idempotency_key?: string
-          request_payload?: Json
-          response_payload?: Json
-          transaction_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transaction_idempotencies_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: true
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transaction_idempotencies_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       users: {
         Row: {
           created_at: string
@@ -1041,6 +1041,7 @@ export type Database = {
       }
       record_cash_transfer: {
         Args: {
+          p_actor_user_id: string
           p_amount: number
           p_destination_bank_id: string
           p_idempotency_key: string
