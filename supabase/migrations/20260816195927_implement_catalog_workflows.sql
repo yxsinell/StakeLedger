@@ -1,0 +1,481 @@
+alter table public.catalog_competitions
+  alter column sport drop not null,
+  drop constraint catalog_competitions_sport_not_blank,
+  add constraint catalog_competitions_sport_shape check (
+    (
+      normalization_status = 'manual'
+      and (sport is null or btrim(sport) <> '')
+    )
+    or (
+      normalization_status <> 'manual'
+      and sport is not null
+      and btrim(sport) <> ''
+    )
+  );
+
+create index catalog_teams_normalized_name_prefix_idx
+  on public.catalog_teams (normalized_name text_pattern_ops)
+  where normalization_status = 'normalized';
+create index catalog_competitions_normalized_name_prefix_idx
+  on public.catalog_competitions (normalized_name text_pattern_ops)
+  where normalization_status = 'normalized';
+create index catalog_aliases_normalized_alias_prefix_idx
+  on public.catalog_aliases (normalized_alias text_pattern_ops);
+
+create policy catalog_teams_manual_insert on public.catalog_teams
+  for insert to authenticated
+  with check (
+    created_by = (select auth.uid())
+    and normalization_status = 'manual'
+    and provider is null
+    and external_id is null
+  );
+
+create policy catalog_competitions_manual_insert on public.catalog_competitions
+  for insert to authenticated
+  with check (
+    created_by = (select auth.uid())
+    and normalization_status = 'manual'
+    and provider is null
+    and external_id is null
+    and sport is null
+  );
+
+create function public.search_catalog(
+  p_entity_type text,
+  p_query text,
+  p_limit integer default 10,
+  p_offset integer default 0
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_query text := lower(btrim(p_query));
+  v_result jsonb;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'AUTHENTICATION_REQUIRED' using errcode = '28000';
+  end if;
+
+  if p_entity_type not in ('team', 'competition')
+    or char_length(v_query) < 2
+    or char_length(v_query) > 100
+    or p_limit < 1
+    or p_limit > 25
+    or p_offset < 0 then
+    raise exception 'VALIDATION_ERROR' using errcode = '22023';
+  end if;
+
+  if p_entity_type = 'team' then
+    with matches as (
+      select
+        catalog_teams.id,
+        catalog_teams.name,
+        catalog_teams.country,
+        null::text as sport,
+        case
+          when catalog_teams.normalized_name = v_query then 0
+          when left(catalog_teams.normalized_name, char_length(v_query)) = v_query then 1
+          else 2
+        end as match_rank,
+        case
+          when left(catalog_teams.normalized_name, char_length(v_query)) = v_query then 'name'
+          else 'alias'
+        end as matched_by
+      from public.catalog_teams
+      where catalog_teams.normalization_status = 'normalized'
+        and (
+          left(catalog_teams.normalized_name, char_length(v_query)) = v_query
+          or exists (
+            select 1
+            from public.catalog_aliases
+            where catalog_aliases.team_id = catalog_teams.id
+              and left(catalog_aliases.normalized_alias, char_length(v_query)) = v_query
+          )
+        )
+    ), page as (
+      select *
+      from matches
+      order by match_rank, name, id
+      limit p_limit + 1
+      offset p_offset
+    ), numbered as (
+      select *, row_number() over (order by match_rank, name, id) as row_number
+      from page
+    )
+    select jsonb_build_object(
+      'success', true,
+      'items', coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', id,
+            'type', 'team',
+            'name', name,
+            'country', country,
+            'sport', sport,
+            'normalizationStatus', 'normalized',
+            'isNormalized', true,
+            'matchedBy', matched_by
+          ) order by match_rank, name, id
+        ) filter (where row_number <= p_limit),
+        '[]'::jsonb
+      ),
+      'nextOffset', case when count(*) > p_limit then p_offset + p_limit else null end
+    ) into v_result
+    from numbered;
+  else
+    with matches as (
+      select
+        catalog_competitions.id,
+        catalog_competitions.name,
+        catalog_competitions.country,
+        catalog_competitions.sport,
+        case
+          when catalog_competitions.normalized_name = v_query then 0
+          when left(catalog_competitions.normalized_name, char_length(v_query)) = v_query then 1
+          else 2
+        end as match_rank,
+        case
+          when left(catalog_competitions.normalized_name, char_length(v_query)) = v_query then 'name'
+          else 'alias'
+        end as matched_by
+      from public.catalog_competitions
+      where catalog_competitions.normalization_status = 'normalized'
+        and (
+          left(catalog_competitions.normalized_name, char_length(v_query)) = v_query
+          or exists (
+            select 1
+            from public.catalog_aliases
+            where catalog_aliases.competition_id = catalog_competitions.id
+              and left(catalog_aliases.normalized_alias, char_length(v_query)) = v_query
+          )
+        )
+    ), page as (
+      select *
+      from matches
+      order by match_rank, name, id
+      limit p_limit + 1
+      offset p_offset
+    ), numbered as (
+      select *, row_number() over (order by match_rank, name, id) as row_number
+      from page
+    )
+    select jsonb_build_object(
+      'success', true,
+      'items', coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', id,
+            'type', 'competition',
+            'name', name,
+            'country', country,
+            'sport', sport,
+            'normalizationStatus', 'normalized',
+            'isNormalized', true,
+            'matchedBy', matched_by
+          ) order by match_rank, name, id
+        ) filter (where row_number <= p_limit),
+        '[]'::jsonb
+      ),
+      'nextOffset', case when count(*) > p_limit then p_offset + p_limit else null end
+    ) into v_result
+    from numbered;
+  end if;
+
+  return v_result;
+end;
+$$;
+
+create function public.create_manual_catalog_item(
+  p_actor_user_id uuid,
+  p_entity_type text,
+  p_name text,
+  p_country text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+  v_name text := btrim(p_name);
+  v_country text := nullif(btrim(p_country), '');
+begin
+  if (select auth.uid()) is null or p_actor_user_id is distinct from (select auth.uid()) then
+    raise exception 'AUTHENTICATION_REQUIRED' using errcode = '28000';
+  end if;
+
+  if p_entity_type not in ('team', 'competition')
+    or char_length(v_name) < 1
+    or char_length(v_name) > 100
+    or char_length(v_country) > 100 then
+    raise exception 'VALIDATION_ERROR' using errcode = '22023';
+  end if;
+
+  if p_entity_type = 'team' then
+    insert into public.catalog_teams (
+      name, country, normalization_status, created_by
+    ) values (
+      v_name, v_country, 'manual', p_actor_user_id
+    ) returning id into v_id;
+  else
+    insert into public.catalog_competitions (
+      name, sport, country, normalization_status, created_by
+    ) values (
+      v_name, null, v_country, 'manual', p_actor_user_id
+    ) returning id into v_id;
+  end if;
+
+  return jsonb_build_object(
+    'success', true,
+    'item', jsonb_build_object(
+      'id', v_id,
+      'type', p_entity_type,
+      'name', v_name,
+      'country', v_country,
+      'sport', null,
+      'normalizationStatus', 'manual',
+      'isNormalized', false,
+      'matchedBy', 'manual'
+    )
+  );
+end;
+$$;
+
+create function public.upsert_catalog_item(
+  p_actor_user_id uuid,
+  p_entity_type text,
+  p_item_id uuid,
+  p_name text,
+  p_sport text default null,
+  p_country text default null,
+  p_provider text default null,
+  p_external_id text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+  v_created boolean := false;
+  v_name text := btrim(p_name);
+  v_sport text := nullif(btrim(p_sport), '');
+  v_country text := nullif(btrim(p_country), '');
+  v_provider text := nullif(btrim(p_provider), '');
+  v_external_id text := nullif(btrim(p_external_id), '');
+begin
+  if not exists (
+    select 1 from public.users
+    where users.id = p_actor_user_id
+      and users.role in ('admin', 'editor')
+  ) then
+    raise exception 'CATALOG_EDITOR_REQUIRED' using errcode = '42501';
+  end if;
+
+  if p_entity_type not in ('team', 'competition')
+    or char_length(v_name) < 1
+    or char_length(v_name) > 100
+    or char_length(v_country) > 100
+    or char_length(v_provider) > 50
+    or char_length(v_external_id) > 100
+    or ((v_provider is null) <> (v_external_id is null))
+    or (p_entity_type = 'competition' and (v_sport is null or char_length(v_sport) > 50))
+    or (p_entity_type = 'team' and v_sport is not null) then
+    raise exception 'VALIDATION_ERROR' using errcode = '22023';
+  end if;
+
+  if p_entity_type = 'team' then
+    if p_item_id is not null then
+      update public.catalog_teams
+      set name = v_name,
+          country = v_country,
+          provider = v_provider,
+          external_id = v_external_id,
+          normalization_status = 'normalized',
+          updated_at = now()
+      where id = p_item_id
+      returning id into v_id;
+    elsif v_provider is not null then
+      select id into v_id
+      from public.catalog_teams
+      where provider = v_provider and external_id = v_external_id
+      for update;
+
+      if found then
+        update public.catalog_teams
+        set name = v_name,
+            country = v_country,
+            normalization_status = 'normalized',
+            updated_at = now()
+        where id = v_id;
+      else
+        insert into public.catalog_teams (
+          provider, external_id, name, country, normalization_status, created_by
+        ) values (
+          v_provider, v_external_id, v_name, v_country, 'normalized', p_actor_user_id
+        ) returning id into v_id;
+        v_created := true;
+      end if;
+    else
+      insert into public.catalog_teams (
+        name, country, normalization_status, created_by
+      ) values (
+        v_name, v_country, 'normalized', p_actor_user_id
+      ) returning id into v_id;
+      v_created := true;
+    end if;
+  else
+    if p_item_id is not null then
+      update public.catalog_competitions
+      set name = v_name,
+          sport = v_sport,
+          country = v_country,
+          provider = v_provider,
+          external_id = v_external_id,
+          normalization_status = 'normalized',
+          updated_at = now()
+      where id = p_item_id
+      returning id into v_id;
+    elsif v_provider is not null then
+      select id into v_id
+      from public.catalog_competitions
+      where provider = v_provider and external_id = v_external_id
+      for update;
+
+      if found then
+        update public.catalog_competitions
+        set name = v_name,
+            sport = v_sport,
+            country = v_country,
+            normalization_status = 'normalized',
+            updated_at = now()
+        where id = v_id;
+      else
+        insert into public.catalog_competitions (
+          provider, external_id, name, sport, country, normalization_status, created_by
+        ) values (
+          v_provider, v_external_id, v_name, v_sport, v_country, 'normalized', p_actor_user_id
+        ) returning id into v_id;
+        v_created := true;
+      end if;
+    else
+      insert into public.catalog_competitions (
+        name, sport, country, normalization_status, created_by
+      ) values (
+        v_name, v_sport, v_country, 'normalized', p_actor_user_id
+      ) returning id into v_id;
+      v_created := true;
+    end if;
+  end if;
+
+  if v_id is null then
+    raise exception 'CATALOG_ITEM_NOT_FOUND' using errcode = 'P0002';
+  end if;
+
+  insert into public.audit_logs (entity_type, entity_id, action, actor_id)
+  values ('catalog', v_id, case when v_created then 'created' else 'updated' end, p_actor_user_id);
+
+  return jsonb_build_object(
+    'success', true,
+    'created', v_created,
+    'item', jsonb_build_object(
+      'id', v_id,
+      'type', p_entity_type,
+      'name', v_name,
+      'country', v_country,
+      'sport', v_sport,
+      'provider', v_provider,
+      'externalId', v_external_id,
+      'normalizationStatus', 'normalized',
+      'isNormalized', true
+    )
+  );
+end;
+$$;
+
+create function public.create_catalog_alias(
+  p_actor_user_id uuid,
+  p_entity_type text,
+  p_item_id uuid,
+  p_alias text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_alias_id uuid;
+  v_alias text := btrim(p_alias);
+begin
+  if not exists (
+    select 1 from public.users
+    where users.id = p_actor_user_id
+      and users.role in ('admin', 'editor')
+  ) then
+    raise exception 'CATALOG_EDITOR_REQUIRED' using errcode = '42501';
+  end if;
+
+  if p_entity_type not in ('team', 'competition')
+    or p_item_id is null
+    or char_length(v_alias) < 1
+    or char_length(v_alias) > 100 then
+    raise exception 'VALIDATION_ERROR' using errcode = '22023';
+  end if;
+
+  if p_entity_type = 'team' then
+    if not exists (select 1 from public.catalog_teams where id = p_item_id) then
+      raise exception 'CATALOG_ITEM_NOT_FOUND' using errcode = 'P0002';
+    end if;
+
+    insert into public.catalog_aliases (team_id, alias, created_by)
+    values (p_item_id, v_alias, p_actor_user_id)
+    returning id into v_alias_id;
+  else
+    if not exists (select 1 from public.catalog_competitions where id = p_item_id) then
+      raise exception 'CATALOG_ITEM_NOT_FOUND' using errcode = 'P0002';
+    end if;
+
+    insert into public.catalog_aliases (competition_id, alias, created_by)
+    values (p_item_id, v_alias, p_actor_user_id)
+    returning id into v_alias_id;
+  end if;
+
+  insert into public.audit_logs (entity_type, entity_id, action, actor_id)
+  values ('catalog', p_item_id, 'updated', p_actor_user_id);
+
+  return jsonb_build_object(
+    'success', true,
+    'alias', jsonb_build_object(
+      'id', v_alias_id,
+      'alias', v_alias,
+      'normalizedAlias', lower(v_alias)
+    )
+  );
+exception
+  when unique_violation then
+    raise exception 'CATALOG_ALIAS_CONFLICT' using errcode = '23505';
+end;
+$$;
+
+revoke all on function public.search_catalog(text, text, integer, integer) from public, anon;
+grant execute on function public.search_catalog(text, text, integer, integer) to authenticated;
+
+revoke all on function public.create_manual_catalog_item(uuid, text, text, text) from public, anon;
+grant execute on function public.create_manual_catalog_item(uuid, text, text, text) to authenticated;
+
+revoke all on function public.upsert_catalog_item(uuid, text, uuid, text, text, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.upsert_catalog_item(uuid, text, uuid, text, text, text, text, text)
+  to service_role;
+
+revoke all on function public.create_catalog_alias(uuid, text, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.create_catalog_alias(uuid, text, uuid, text)
+  to service_role;

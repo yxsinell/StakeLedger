@@ -432,7 +432,7 @@ export type Database = {
           normalization_status: string
           normalized_name: string | null
           provider: string | null
-          sport: string
+          sport: string | null
           updated_at: string
         }
         Insert: {
@@ -445,7 +445,7 @@ export type Database = {
           normalization_status?: string
           normalized_name?: string | null
           provider?: string | null
-          sport: string
+          sport?: string | null
           updated_at?: string
         }
         Update: {
@@ -458,7 +458,7 @@ export type Database = {
           normalization_status?: string
           normalized_name?: string | null
           provider?: string | null
-          sport?: string
+          sport?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1097,6 +1097,24 @@ export type Database = {
         }
         Returns: Json
       }
+      create_catalog_alias: {
+        Args: {
+          p_actor_user_id: string
+          p_alias: string
+          p_entity_type: string
+          p_item_id: string
+        }
+        Returns: Json
+      }
+      create_manual_catalog_item: {
+        Args: {
+          p_actor_user_id: string
+          p_country?: string
+          p_entity_type: string
+          p_name: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_catalog_editor: { Args: never; Returns: boolean }
       record_cash_transaction: {
@@ -1116,6 +1134,42 @@ export type Database = {
           p_destination_bank_id: string
           p_idempotency_key: string
           p_source_bank_id: string
+        }
+        Returns: Json
+      }
+      search_catalog: {
+        Args: {
+          p_entity_type: string
+          p_limit?: number
+          p_offset?: number
+          p_query: string
+        }
+        Returns: Json
+      }
+      upsert_catalog_item: {
+        Args: {
+          p_actor_user_id: string
+          p_country?: string
+          p_entity_type: string
+          p_external_id?: string
+          p_item_id: string
+          p_name: string
+          p_provider?: string
+          p_sport?: string
+        }
+        Returns: Json
+      }
+      upsert_catalog_item_with_alias: {
+        Args: {
+          p_actor_user_id: string
+          p_alias?: string
+          p_country?: string
+          p_entity_type: string
+          p_external_id?: string
+          p_item_id: string
+          p_name: string
+          p_provider?: string
+          p_sport?: string
         }
         Returns: Json
       }
