@@ -44,12 +44,12 @@
 - Endpoints API:
   - `GET /api/catalog/teams` (q)
   - `GET /api/catalog/competitions` (q)
-- Servicios: catalogo local + alternativa a API externa
+- Servicios: catalogo local curado
 - Base de datos: `catalog_teams`, `catalog_competitions`, `catalog_aliases`
 
 **Servicios externos:**
 
-- API externa de catalogo (alternativa cuando no hay coincidencias locales)
+- Ninguno en MVP
 
 **Puntos de integracion:**
 
@@ -66,7 +66,7 @@
 **Factores:**
 
 - Complejidad de negocio: Media (normalizacion + comportamiento de alternativa)
-- Complejidad de integracion: Media (API local + API externa)
+- Complejidad de integracion: Media (API local + DB + RBAC)
 - Complejidad de validacion de datos: Media (query length, estados UI)
 - Complejidad UI: Media (loading/empty/sugerencias)
 
@@ -100,7 +100,7 @@
 
 **Para PO:**
 
-- Proveedor externo y SLA/limitaciones
+- Proveedor externo fuera de alcance MVP; validar empty state e ingreso manual
   - **Estado:** ⏳ Pendiente
   - **Impacto en esta story:** define tiempos de espera y comportamiento de alternativa
 
@@ -132,37 +132,37 @@
 
 ### Ambiguedades Identificadas
 
-**Ambiguedad 1:** Mensaje exacto de validacion para query < 2
+**Ambiguedad 1 resuelta:** Mensaje exacto de validacion para query < 2
 
 - **Ubicacion:** Scenario 2 (AC)
-- **Pregunta para PO:** cual es el mensaje exacto y su ubicacion en UI?
-- **Impacto en testing:** no se puede validar copy ni UX de error
-- **Sugerencia:** definir texto y comportamiento
+- **Resolución Fase 4F:** mostrar inline bajo el input: `Escribe al menos 2 caracteres para buscar`.
+- **Impacto en testing:** copy y ubicacion quedan validables.
+- **Sugerencia:** usar `catalog_search_input` como ancla y validar mensaje visible sin llamada API.
 
-**Ambiguedad 2:** Comportamiento de alternativa (local vs externo)
+**Ambiguedad 2 resuelta:** Comportamiento de alternativa (local vs externo)
 
 - **Ubicacion:** Technical Notes / Workflow
-- **Pregunta para Dev:** la alternativa externa se intenta siempre o solo si catalogo local no devuelve resultados?
-- **Impacto en testing:** afecta flujos de integracion y casos de latencia
-- **Sugerencia:** documentar orden y criterios
+- **Resolución Fase 4F:** no hay alternativa externa; si catalogo local no devuelve resultados, UI muestra empty state con ingreso manual.
+- **Impacto en testing:** se elimina cobertura de latencia externa.
+- **Sugerencia:** validar que no existe fallback externo ni retry externo en implementación.
 
 ---
 
 ### Informacion Faltante / Gaps
 
-**Gap 1:** Estrategia de cache (TTL, invalidacion, claves)
+**Gap 1 resuelto:** Estrategia de cache (TTL, invalidacion, claves)
 
 - **Tipo:** Detalle tecnico
-- **Por que es critico:** sin esto no se valida coherencia de resultados
-- **Sugerencia:** agregar valores y estrategia
-- **Impacto:** riesgo de datos obsoletos
+- **Resolución Fase 4F:** no hay cache externa ni persistente en MVP.
+- **Sugerencia:** usar estado cliente efimero del componente si hace falta, sin TTL persistente.
+- **Impacto:** coherencia queda en DB local y request actual.
 
-**Gap 2:** Limites de rendimiento para autocompletado
+**Gap 2 resuelto:** Limites de rendimiento para autocompletado
 
 - **Tipo:** Requisito no funcional
-- **Por que es critico:** NFR p95 < 500ms aplica a este endpoint
-- **Sugerencia:** referenciar NFR-P-001 con objetivo especifico
-- **Impacto:** no se puede cerrar performance
+- **Resolución Fase 4F:** NFR-P-001 aplica a `/api/catalog/teams` y `/api/catalog/competitions` con p95 <= 500ms para `limit<=25`.
+- **Sugerencia:** cubrir con prueba de integración/performance local cuando exista endpoint.
+- **Impacto:** performance queda cerrada para MVP.
 
 ---
 
@@ -175,7 +175,7 @@
 - **Criticidad:** Media
 - **Accion:** agregar a criterios refinados
 
-**Caso Borde 2:** Respuesta lenta de API externa
+**Caso Borde 2:** Sin resultados locales
 
 - **Escenario:** respuesta > timeout
 - **Comportamiento esperado:** mostrar estado de error y opcion manual
@@ -192,7 +192,7 @@
 
 - [ ] Criterios de aceptacion con mensajes no definidos
 - [ ] Falta estrategia de cache
-- [ ] Falta criterio de timeout de API externa
+- [ ] Falta validar que el empty state habilita ingreso manual
 
 **Recomendaciones:**
 
@@ -270,7 +270,7 @@
 **Fuente:** Analisis critico (Paso 2)
 
 - **Dado:** no hay resultados locales
-- **Cuando:** la API externa excede el timeout
+- **Cuando:** el catalogo local no devuelve resultados
 - **Entonces:**
   - Se muestra estado de error controlado
   - Se habilita ingreso manual

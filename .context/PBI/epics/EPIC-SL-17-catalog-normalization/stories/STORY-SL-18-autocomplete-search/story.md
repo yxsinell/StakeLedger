@@ -26,11 +26,13 @@
 - Campo de busqueda con autocompletado
 - Resultados normalizados por tipo (team/competition)
 - Validar query length >= 2
+- Busqueda exclusiva en catalogo local curado
 
 ### Out of Scope
 
 - Filtros avanzados por temporada
 - Busqueda fuzzy avanzada
+- Fallback a proveedor externo, scraping o cache externa
 
 ---
 
@@ -64,6 +66,8 @@
 
 - Query length >= 2
 - Resultados deben estar normalizados
+- Las entradas `manual` no se devuelven como sugerencias normalizadas
+- Si no hay resultados se ofrece ingreso manual
 
 ---
 
@@ -72,7 +76,7 @@
 <!-- Jira Field: customfield_10500 (🧬WORKFLOW) - Opcional -->
 
 1. Usuario escribe en busqueda
-2. Sistema consulta catalogo y/o API externa
+2. Sistema consulta catalogo local
 3. Sistema muestra sugerencias
 
 ---
@@ -93,8 +97,8 @@
 
 ### Backend
 
-- Cache de resultados por query
-- Fallback a API externa si no hay matches
+- Busqueda local por `normalized_name` y `catalog_aliases.normalized_alias`
+- Fallback manual si no hay matches
 
 ### Database
 
@@ -103,7 +107,7 @@
 
 ### External Services
 
-- API externa de catalogo (si aplica)
+- Ninguno en MVP
 
 ---
 

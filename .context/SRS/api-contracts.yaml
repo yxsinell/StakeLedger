@@ -361,12 +361,21 @@ paths:
     get:
       summary: Search teams
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: q
+          required: true
           schema:
             type: string
+            minLength: 2
+            maxLength: 100
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 25, default: 10}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
       responses:
         '200':
           description: Team results
@@ -374,17 +383,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogListResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
 
   /api/catalog/competitions:
     get:
       summary: Search competitions
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: q
+          required: true
           schema:
             type: string
+            minLength: 2
+            maxLength: 100
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 25, default: 10}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
       responses:
         '200':
           description: Competition results
@@ -392,12 +412,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogListResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
 
   /api/catalog/manual:
     post:
       summary: Create manual catalog entry
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -411,6 +433,176 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CatalogItemResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/admin/catalog/teams:
+    get:
+      summary: List teams for catalog maintenance
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: {type: string, maxLength: 100}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 50, default: 25}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        '200': {description: Team maintenance page}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      summary: Create normalized team
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogTeamAdminRequest'
+      responses:
+        '201': {description: Team created}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/admin/catalog/teams/{teamId}:
+    patch:
+      summary: Update normalized team
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: teamId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogTeamAdminRequest'
+      responses:
+        '200': {description: Team updated}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/admin/catalog/teams/{teamId}/aliases:
+    post:
+      summary: Create team alias
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: teamId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogAliasRequest'
+      responses:
+        '201': {description: Alias created}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/admin/catalog/competitions:
+    get:
+      summary: List competitions for catalog maintenance
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: {type: string, maxLength: 100}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 50, default: 25}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        '200': {description: Competition maintenance page}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      summary: Create normalized competition
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCompetitionAdminRequest'
+      responses:
+        '201': {description: Competition created}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/admin/catalog/competitions/{competitionId}:
+    patch:
+      summary: Update normalized competition
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: competitionId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCompetitionAdminRequest'
+      responses:
+        '200': {description: Competition updated}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/admin/catalog/competitions/{competitionId}/aliases:
+    post:
+      summary: Create competition alias
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: competitionId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogAliasRequest'
+      responses:
+        '201': {description: Alias created}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/goals:
     get:
@@ -962,8 +1154,11 @@ components:
           enum: [team, competition]
         rawText:
           type: string
+          minLength: 1
+          maxLength: 100
         country:
           type: string
+          maxLength: 100
       required: [type, rawText]
 
     CatalogItemResponse:
@@ -971,9 +1166,22 @@ components:
       properties:
         success:
           type: boolean
-        itemId:
-          type: string
-          format: uuid
+        item:
+          $ref: '#/components/schemas/CatalogItem'
+      required: [success, item]
+
+    CatalogItem:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [team, competition]}
+        name: {type: string}
+        country: {type: string, nullable: true}
+        sport: {type: string, nullable: true}
+        normalizationStatus: {type: string, enum: [normalized, manual, pending, deprecated]}
+        isNormalized: {type: boolean}
+        matchedBy: {type: string, enum: [name, alias, manual]}
+      required: [id, type, name, normalizationStatus, isNormalized]
 
     CatalogListResponse:
       type: object
@@ -983,7 +1191,36 @@ components:
         items:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/CatalogItem'
+        nextOffset:
+          type: integer
+          nullable: true
+      required: [success, items, nextOffset]
+
+    CatalogTeamAdminRequest:
+      type: object
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        country: {type: string, maxLength: 100}
+        provider: {type: string, maxLength: 50}
+        externalId: {type: string, maxLength: 100}
+      required: [name]
+
+    CatalogCompetitionAdminRequest:
+      type: object
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        sport: {type: string, minLength: 1, maxLength: 50}
+        country: {type: string, maxLength: 100}
+        provider: {type: string, maxLength: 50}
+        externalId: {type: string, maxLength: 100}
+      required: [name, sport]
+
+    CatalogAliasRequest:
+      type: object
+      properties:
+        alias: {type: string, minLength: 1, maxLength: 100}
+      required: [alias]
 
     GoalCreateRequest:
       type: object

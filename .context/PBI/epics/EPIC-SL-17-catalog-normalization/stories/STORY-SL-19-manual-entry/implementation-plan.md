@@ -1,4 +1,4 @@
-# Implementation Plan: STORY-SL-19 - Ingreso manual unnormalized
+# Implementation Plan: STORY-SL-19 - Ingreso manual `manual`
 
 ## Fuentes
 
@@ -12,7 +12,7 @@
 ## Estado Actual Verificado
 
 - No existe `src/app/api/catalog/manual/route.ts`.
-- No hay tablas `catalog_*` en `src/types/supabase.ts`.
+- `src/types/supabase.ts` contiene tablas `catalog_*`.
 - No existe formulario manual de catalogo.
 - OpenAPI declara `CatalogManualRequest` con `type`, `rawText`, `country?` y requiere `type`, `rawText`.
 
@@ -25,8 +25,8 @@
 
 ## Alcance
 
-- Crear registro manual con `normalization_status=UNNORMALIZED`.
-- Capturar `type`, `rawText` y `country` si se confirma.
+- Crear registro manual con `normalization_status='manual'`.
+- Capturar `type`, `rawText` y `country?`.
 - Permitir que el ticket/recommendation use la entidad como no normalizada donde sea aceptado.
 - Mantener fuera de alcance normalizacion automatica posterior.
 
@@ -41,16 +41,17 @@
 
 ## DB/RLS Necesarios
 
-- Migration-first: requiere tabla/modelo de catalogo con `raw_text`, `entity_type`, `country`, `normalization_status`, `created_by`.
-- Definir enum exacto de `normalization_status`; story usa `UNNORMALIZED`.
-- Definir dedupe minimo para evitar duplicados obvios por `created_by + entity_type + normalized raw_text` si aplica.
-- RLS: usuario autenticado crea/lee sus manual entries si no son globales; admin/editor puede normalizar en SL-20.
-- Indices por `created_by`, `entity_type`, `normalization_status`.
+- Usar `catalog_teams` y `catalog_competitions` existentes; `name` almacena `rawText` trimmeado.
+- Enum exacto de `normalization_status`: `manual`.
+- `created_by` registra el usuario que crea la entrada manual.
+- RLS nuevo requerido: authenticated puede insertar filas `manual`; editor/admin mantiene normalizadas y alias.
+- Preflight antes de crear migrations: reconciliar historial RBAC remoto/local (`20260816145742_add_admin_role_management` remoto vs `20260816170000_add_admin_role_management.sql` local) para evitar drift.
+- No se requiere dedupe global para manual MVP; duplicados manuales son trabajo editorial posterior.
 
 ## API Necesaria
 
 - `POST /api/catalog/manual` con `{ type, rawText, country? }`.
-- Success: `201` con `{ success, itemId }`.
+- Success: `201` con `{ success, item }` e `isNormalized=false`.
 - Errors: `400` rawText vacio/type invalido/country invalido, `401`, `409` duplicado si se aprueba.
 
 ## UI Necesaria
@@ -62,30 +63,27 @@
 
 ## Validaciones Zod
 
-- `type`: enum `team|competition`; decidir si mayusculas se normalizan o rechazan.
-- `rawText`: string trim, min 1, max pendiente.
-- `country`: opcional segun OpenAPI actual, formato ISO si se confirma.
+- `type`: enum estricto `team|competition`; mayusculas se rechazan con `VALIDATION_ERROR`.
+- `rawText`: string trim, min 1, max 100.
+- `country`: opcional, string trim max 100.
 - Rechazar raw text solo espacios.
 
 ## Tests Minimos
 
 - Unit: rawText vacio/espacios y type invalido.
-- API: crea entry `UNNORMALIZED` con type valido.
-- API: `TEAM` mayuscula segun decision aprobada.
+- API: crea entry `manual` con type valido.
+- API: `TEAM` mayuscula se rechaza.
 - API/RLS: usuario no puede modificar entry ajena si hay ownership.
 - E2E: empty autocomplete abre manual form y guarda.
 
 ## Criterios de Cierre
 
 - AC SL-19 cubiertos: ingreso exitoso, texto requerido, tipo invalido.
-- `normalization_status` exacto definido en DB/API/tests.
+- `normalization_status='manual'` definido en DB/API/tests.
 - Manual entry queda disponible para workflows dependientes sin marcarse normalizado.
 - Supabase types actualizados si cambia schema.
 - `bun run repo:check` pasa.
 
 ## Decisiones Abiertas
 
-- `country` obligatorio u opcional.
-- Min/max y caracteres permitidos para `rawText`.
-- Normalizar o rechazar `type` en mayusculas.
-- Dedupe manual entries en MVP.
+- Ninguna bloqueante. Dedupe manual queda fuera de alcance MVP.

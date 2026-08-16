@@ -123,25 +123,25 @@
 
 - **Relacionado a:** EPIC-SL-04, US 4.1
 - **Input:** query, type (team|competition)
-- **Processing:** buscar en catalogo local, fallback API externa
-- **Output:** lista de resultados normalizados
-- **Validations:** query length >= 2
+- **Processing:** buscar exclusivamente en catalogo local curado por nombre normalizado y alias
+- **Output:** lista paginada de resultados normalizados
+- **Validations:** query trimmeada con longitud >= 2; no devolver entradas `manual` como normalizadas
 
 ## FR-015: El sistema debe permitir ingreso manual con estado unnormalized
 
 - **Relacionado a:** EPIC-SL-04, US 4.2
-- **Input:** raw_text, type, country
-- **Processing:** crear registro con normalization_status=UNNORMALIZED
-- **Output:** catalog_item_id
-- **Validations:** raw_text requerido
+- **Input:** raw_text, type, country opcional
+- **Processing:** crear registro local con `normalization_status=manual`
+- **Output:** item manual con `is_normalized=false`
+- **Validations:** raw_text requerido tras trim; type estricto `team|competition`; entrada manual nunca se presenta como normalizada
 
 ## FR-016: El sistema debe actualizar catalogo y alias
 
 - **Relacionado a:** EPIC-SL-04, US 4.3
-- **Input:** provider, external_id, name, season
-- **Processing:** upsert en catalogo y tabla de alias
-- **Output:** status de actualizacion
-- **Validations:** provider permitido, external_id requerido
+- **Input:** entity_type, provider opcional, external_id opcional, name, country opcional, sport para competiciones, alias opcionales
+- **Processing:** editor/admin crea o actualiza entidades normalizadas locales y aliases sin cambiar IDs referenciados
+- **Output:** entidad actualizada y aliases vigentes
+- **Validations:** `provider + external_id` único por entidad si se informa; alias único por entidad tras `lower(trim(alias))`; solo `editor|admin`
 
 ## FR-017: El sistema debe permitir crear metas con parametros obligatorios
 

@@ -70,7 +70,7 @@ catalog_events + catalog_markets ----> bet_legs | recommendations
 | `goals` | `user_id`, y bank del mismo titular | Existe. Flujo futuro. |
 | `goal_history` | Hereda titularidad de goal | Existe. Historial futuro de creación, misión, recálculo y cierre. |
 | `risk_limits` | `user_id`, único | Existe. Flujo futuro; un conjunto de límites por usuario. |
-| catálogo | Editor/admin para escritura; autenticados leen | Existe como `catalog_teams`, `catalog_competitions`, `catalog_aliases`, `catalog_events`, `catalog_markets`. Flujo futuro. |
+| catálogo | `user` crea entradas manuales; `editor/admin` mantienen entidades normalizadas y alias; autenticados leen | Existe como `catalog_teams`, `catalog_competitions`, `catalog_aliases`, `catalog_events`, `catalog_markets`. MVP local y curado, sin proveedor externo. |
 | `recommendations` | Editor/admin crea y actualiza | Existe. Feed futuro con estados `draft`, `published`, `inactive`. |
 | `recommendation_follows` | `user_id` | Existe. Seguimiento futuro, único por usuario y recomendación. |
 
@@ -150,17 +150,40 @@ open -> cashout parcial -> ticket cerrado + ticket abierto derivado
 - **Adoptado:** `void` devuelve el stake a cada pocket financiador. `won`, `lost`, `half_won` y `half_lost` liquidan cada aportación de forma proporcional, sin conversión entre pockets salvo freebet ganada.
 - **Adoptado:** cash y bonus devuelven respectivamente `aportación × cuota`; freebet ganada devuelve solo `aportación × (cuota - 1)` a `cash`. `half_won` devuelve media aportación más media aportación ganadora; `half_lost` devuelve media aportación. Si un asiento calculado supera dos decimales, el ticket o liquidación se rechaza: no se redondea.
 
-### Catálogo normalizado y fallback manual — Planificado
+### Catálogo normalizado y fallback manual — Diseñado para Fase 4F
 
 ```text
 Consulta >= 2 caracteres -> catálogo local -> resultado normalizado
-                                         -> sin resultado -> entrada manual
-                                                              -> status=manual
+                                          -> sin resultado -> entrada manual
+                                                              -> normalization_status=manual
 ```
 
-- **Confirmado:** usuario puede crear entrada manual marcada; editor/admin mantiene catálogo y alias.
-- **Adoptado:** fallback manual crea `normalization_status=manual`, nunca se presenta como normalizado.
-- **Adoptado:** proveedor y `external_id` son únicos por entidad; alias es único por entidad y normalizado por trim/lowercase.
+- **Confirmado:** catálogo MVP es local y curado; no hay proveedor externo, scraping, timeout externo ni cache externa.
+- **Confirmado:** usuario autenticado puede buscar entidades normalizadas y crear entrada manual.
+- **Adoptado:** fallback manual crea `normalization_status=manual`, nunca se presenta como normalizado y se expone con `isNormalized=false`.
+- **Adoptado:** editor/admin mantiene entidades `normalized` y aliases.
+- **Adoptado:** alias se normaliza con `lower(trim(alias))` y es único por entidad de destino.
+- **Adoptado:** proveedor y `external_id` son opcionales en MVP local; cuando se introduzcan, el par será único por entidad.
+- **Adoptado:** tickets y recomendaciones futuras deberán distinguir referencias normalizadas de entradas manuales explícitamente marcadas.
+
+#### Estados de normalización de catálogo
+
+| Estado | Uso MVP | Regla |
+| --- | --- | --- |
+| `normalized` | Entidad curada | Puede aparecer en autocomplete y alimentar recomendaciones normalizadas. |
+| `manual` | Entrada de usuario | No aparece como normalizada; solo se usa como referencia manual explícita en flujos futuros. |
+| `pending` | Reservado | Revisión editorial futura, no usado por el MVP de búsqueda. |
+| `deprecated` | Retirada | No aparece en búsquedas normales. |
+
+#### Búsqueda de equipos y competiciones
+
+| Regla | Decisión |
+| --- | --- |
+| Longitud mínima | `q.trim().length >= 2` en UI y API. |
+| Límite | `limit` default 10, máximo 25; `offset` default 0. |
+| Coincidencia | Prefijo sobre `normalized_name` y prefijo sobre `catalog_aliases.normalized_alias`. |
+| Orden | exact match, prefijo por nombre, prefijo por alias, nombre ascendente, id ascendente. |
+| Resultado | Solo entidades `normalized`; empty state ofrece ingreso manual. |
 
 ### Metas y riesgo — Planificado
 

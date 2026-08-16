@@ -1,4 +1,4 @@
-# As a user, I want to enter data manually when it does not exist so that it is marked as unnormalized
+# As a user, I want to enter data manually when it does not exist so that it is marked as manual
 
 **Jira Key:** SL-19
 **Epic:** EPIC-SL-17 (Catalog and Normalization)
@@ -13,7 +13,7 @@
 
 **As a** usuario
 **I want to** introducir datos manuales si no existen
-**So that** queden marcados como unnormalized
+**So that** queden marcados como `manual`
 
 ---
 
@@ -24,13 +24,14 @@
 ### In Scope
 
 - Formulario de ingreso manual
-- Guardar registro con normalization_status=UNNORMALIZED
+- Guardar registro con `normalization_status=manual`
 - Capturar tipo (team/competition) y pais
 
 ### Out of Scope
 
 - Validacion automatica avanzada
 - Normalizacion automatica posterior
+- Presentar entrada manual como dato normalizado
 
 ---
 
@@ -42,7 +43,7 @@
 
 - **Given:** un usuario autenticado
 - **When:** ingresa datos manuales validos
-- **Then:** el sistema crea el registro con estado UNNORMALIZED
+- **Then:** el sistema crea el registro con estado `manual`
 
 ### Scenario 2: Texto requerido
 
@@ -64,6 +65,8 @@
 
 - raw_text requerido
 - type permitido: team, competition
+- country opcional
+- La entrada manual nunca aparece como resultado normalizado de autocomplete
 
 ---
 
@@ -73,7 +76,7 @@
 
 1. Usuario selecciona ingreso manual
 2. Completa datos requeridos
-3. Sistema guarda registro unnormalized
+3. Sistema guarda registro `manual`
 
 ---
 
@@ -93,7 +96,7 @@
 
 ### Backend
 
-- Guardar normalization_status=UNNORMALIZED
+- Guardar `normalization_status=manual`
 - Validar campos requeridos
 
 ### Database

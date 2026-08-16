@@ -23,14 +23,16 @@
 
 ### In Scope
 
-- Crear/editar items de catalogo con provider, external_id, name y season
+- Crear/editar items de catalogo con provider, external_id, name, country y sport para competiciones
 - Gestionar alias por entidad
 - Upsert por proveedor y external_id
+- Mantener entidades normalizadas locales y curadas
 
 ### Out of Scope
 
 - Sincronizacion en tiempo real con proveedores
 - Workflows de aprobacion complejos
+- Scraping o integracion externa durante MVP
 
 ---
 
@@ -40,13 +42,13 @@
 
 ### Scenario 1: Actualizacion exitosa
 
-- **Given:** un admin autenticado
+- **Given:** un editor o admin autenticado
 - **When:** actualiza un item de catalogo con datos validos
 - **Then:** el sistema guarda los cambios y mantiene referencias
 
 ### Scenario 2: Alias duplicado
 
-- **Given:** un admin autenticado
+- **Given:** un editor o admin autenticado
 - **When:** intenta crear un alias ya existente
 - **Then:** el sistema rechaza la accion con error de duplicado
 
@@ -62,10 +64,10 @@
 
 <!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
 
-- Solo admin puede actualizar catalogo
-- Alias deben ser unicos por entidad
-- Provider permitido
-- External_id requerido
+- Editor y admin pueden actualizar catalogo.
+- Alias deben ser unicos por entidad tras `lower(trim(alias))`.
+- `provider` y `external_id` son opcionales en MVP local, pero si uno existe el otro es obligatorio.
+- `provider + external_id` es unico por entidad cuando se introduzca.
 
 ---
 
@@ -105,7 +107,7 @@
 
 ### External Services
 
-- Proveedor externo de datos (si aplica)
+- Ninguno en MVP
 
 ---
 
@@ -156,7 +158,7 @@ See: `.context/PBI/epics/EPIC-SL-17-catalog-normalization/stories/STORY-SL-20-ma
 
 ## Notes
 
-- Definir proveedores y frecuencia de updates
+- Proveedores y frecuencia de updates quedan fuera del MVP. Si se introducen, deben añadirse primero a SRS y OpenAPI.
 
 ---
 

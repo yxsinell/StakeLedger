@@ -42,7 +42,7 @@
 
 - Endpoints API:
   - `POST /api/catalog/manual`
-- Servicios: creacion de item catalogo con estado UNNORMALIZED
+- Servicios: creacion de item catalogo con estado `manual`
 - Base de datos: `catalog_teams`, `catalog_competitions`, `catalog_aliases`
 
 **Servicios externos:**
@@ -62,7 +62,7 @@
 
 **Factores:**
 
-- Complejidad de negocio: Media (estado UNNORMALIZED y reglas de validacion)
+- Complejidad de negocio: Media (estado `manual` y reglas de validacion)
 - Complejidad de integracion: Baja (solo API y DB)
 - Complejidad de validacion de datos: Media (required + enums)
 - Complejidad UI: Media (errores y validaciones)
@@ -76,7 +76,7 @@
 **Riesgos criticos ya identificados:**
 
 - Riesgo: normalizacion incorrecta afecta analitica
-  - **Relevancia:** registros manuales unnormalized impactan reporting
+  - **Relevancia:** registros manuales `manual` impactan reporting
 - Riesgo: datos duplicados en catalogo
   - **Relevancia:** ingreso manual puede crear duplicados
 
@@ -118,26 +118,26 @@
 
 ### Ambiguedades Identificadas
 
-**Ambiguedad 1:** Reglas de obligatoriedad de country
+**Ambiguedad 1 resuelta:** Reglas de obligatoriedad de country
 
 - **Ubicacion:** Scope / Technical Notes
-- **Pregunta para PO/Dev:** country es obligatorio o opcional?
-- **Impacto en testing:** no se puede validar errores ni criterios de UI
-- **Sugerencia:** definir required/optional y formato
+- **Resolución Fase 4F:** `country` es opcional, string trim max 100.
+- **Impacto en testing:** no hay error por ausencia de country; si se informa se valida trim/max.
+- **Sugerencia:** cubrir payload con y sin country.
 
-**Ambiguedad 2:** Mensajes de error esperados
+**Ambiguedad 2 resuelta:** Mensajes de error esperados
 
 - **Ubicacion:** Scenario 2 y 3 (AC)
-- **Pregunta para PO:** cual es el mensaje exacto para raw_text requerido y tipo invalido?
-- **Impacto en testing:** no se puede validar UX ni copy
-- **Sugerencia:** definir textos exactos
+- **Resolución Fase 4F:** raw text requerido: `Introduce un nombre para continuar`; tipo invalido: `Selecciona un tipo válido`.
+- **Impacto en testing:** UX y copy quedan validables.
+- **Sugerencia:** validar errores inline y respuesta API `VALIDATION_ERROR`.
 
 **Ambiguedad 3:** Valor exacto de normalization_status
 
 - **Ubicacion:** Business Rules / Technical Notes
-- **Pregunta para Dev:** cual es el enum exacto a persistir (UNNORMALIZED u otro)?
-- **Impacto en testing:** no se puede validar DB ni API response
-- **Sugerencia:** documentar enum en SRS/Story
+- **Resolución Fase 4F:** el enum exacto a persistir es `manual`.
+- **Impacto en testing:** DB y API response quedan validables con `normalization_status='manual'` e `isNormalized=false`.
+- **Sugerencia:** documentado en SRS/Story.
 
 ---
 
@@ -204,7 +204,7 @@
 - **Dado:** usuario autenticado en formulario de ingreso manual
 - **Cuando:** ingresa raw_text "Barcelona" y type "team" (country **TBD**)
 - **Entonces:**
-  - Se crea el registro con normalization_status=UNNORMALIZED
+  - Se crea el registro con `normalization_status=manual`
   - Se muestra confirmacion de guardado
 
 ---
@@ -289,8 +289,8 @@
 
 | Type | Country | Raw Text | Resultado esperado |
 | --- | --- | --- | --- |
-| team | ES | Barcelona | creado UNNORMALIZED |
-| competition | AR | Liga Profesional | creado UNNORMALIZED |
+| team | ES | Barcelona | creado `manual` |
+| competition | AR | Liga Profesional | creado `manual` |
 
 **Total de pruebas:** 2
 **Beneficio:** cubre tipos permitidos con un solo outline.
@@ -329,7 +329,7 @@ Formato: `Validar <comportamiento> <condicion>`
 
 - **UI:** confirmacion de guardado
 - **API:** 201 Created
-- **DB:** registro creado con normalization_status=UNNORMALIZED
+- **DB:** registro creado con `normalization_status=manual`
 
 ---
 
@@ -440,7 +440,7 @@ Formato: `Validar <comportamiento> <condicion>`
 
 1. UI envia payload manual
 2. API valida y crea registro
-3. DB persiste con UNNORMALIZED
+3. DB persiste con `manual`
 4. UI muestra confirmacion
 
 **Resultado esperado:**
@@ -487,30 +487,30 @@ Formato: `Validar <comportamiento> <condicion>`
 
 1. Falta definir mensajes de error
 2. Falta enum exacto de normalization_status
-3. Falta definir country requerido u opcional
+3. Country definido como opcional en Fase 4F
 
 ---
 
 ### Preguntas criticas para PO
 
-**Pregunta 1:** country es obligatorio u opcional?
+**Pregunta 1 resuelta:** country es obligatorio u opcional?
 
-- **Contexto:** impacta validaciones del formulario
-- **Impacto:** no se puede cerrar casos de error
+- **Resolución Fase 4F:** opcional, string trim max 100.
+- **Impacto:** casos de error cerrados para ausencia, trim y max length.
 
-**Pregunta 2:** mensaje exacto para raw_text requerido y type invalido?
+**Pregunta 2 resuelta:** mensaje exacto para raw_text requerido y type invalido?
 
-- **Contexto:** validacion UX
-- **Impacto:** no se puede validar copy
+- **Resolución Fase 4F:** `Introduce un nombre para continuar` y `Selecciona un tipo válido`.
+- **Impacto:** copy validable.
 
 ---
 
 ### Preguntas tecnicas para Dev
 
-**Pregunta 1:** enum exacto de normalization_status?
+**Pregunta 1 resuelta:** enum exacto de normalization_status?
 
-- **Contexto:** validacion de DB y API
-- **Impacto:** no se puede validar persistencia
+- **Resolución Fase 4F:** `manual`.
+- **Impacto:** persistencia validable.
 
 ---
 

@@ -27,7 +27,7 @@ Esta epica reduce errores en el registro de apuestas y habilita analitica confia
 
 **Metricas de Exito (KPIs):**
 
-- % de registros normalizados vs unnormalized
+- % de registros normalizados vs manuales
 - Reduccion de errores en registro de apuestas
 
 **Impacto en Usuarios:**
@@ -66,7 +66,7 @@ Esta epica reduce errores en el registro de apuestas y habilita analitica confia
 
 **Servicios Externos:**
 
-- API externa de catalogo (alternativa cuando no hay coincidencia)
+- Ninguno en MVP
 
 ### Puntos de Integracion (Criticos para Pruebas)
 
@@ -74,18 +74,18 @@ Esta epica reduce errores en el registro de apuestas y habilita analitica confia
 
 - Frontend ↔ Backend API (busqueda/autocompletado, ingreso manual, actualizacion admin)
 - Backend ↔ Base de Datos (catalogo y alias)
-- Backend ↔ Auth/RBAC (solo admin actualiza catalogo)
+- Backend ↔ Auth/RBAC (editor/admin actualizan catalogo)
 
 **Puntos de Integracion Externos:**
 
-- Backend ↔ API externa de catalogo
+- Ninguno en MVP
 
 **Flujo de Datos:**
 
 ```
 Usuario → UI → /api/catalog/teams|competitions → DB
                           ↓
-                   API externa (alternativa)
+                   Empty state → ingreso manual
 ```
 
 ---
@@ -150,10 +150,10 @@ Usuario → UI → /api/catalog/teams|competitions → DB
 
 ### Riesgos de Integracion
 
-#### Riesgo de Integracion 1: API externa no responde o devuelve datos incompletos
+#### Riesgo de Integracion 1: API no distingue manual de normalizado
 
-- **Punto de Integracion:** Backend ↔ API externa
-- **Que Puede Salir Mal:** tiempos de espera, esquema incompleto, datos con nombres no normalizados
+- **Punto de Integracion:** UI ↔ API ↔ DB
+- **Que Puede Salir Mal:** una entrada `manual` aparece como normalizada y contamina tickets/recomendaciones futuras
 - **Impacto:** Alta
 - **Mitigacion:**
   - pruebas de integracion con mocks y tiempos de espera
@@ -173,11 +173,11 @@ Usuario → UI → /api/catalog/teams|competitions → DB
 
 ### Ambiguedades Identificadas
 
-**Ambiguedad 1:** Proveedor externo y politica de alternativa no definida
+**Ambiguedad 1 resuelta:** Proveedor externo y politica de alternativa
 
 - **Encontrado en:** EPIC-SL-17 / STORY-SL-18
-- **Pregunta para PO:** Que proveedor externo se usara y que SLA/limitaciones aplica?
-- **Impacto si no se aclara:** incertidumbre en cobertura de resiliencia y rendimiento
+- **Resolución Fase 4F:** no aplica al MVP. No hay proveedor externo ni SLA externo.
+- **Impacto:** se elimina cobertura de resiliencia externa; se cubre empty state e ingreso manual.
 
 **Ambiguedad 2:** Reglas exactas de deduplicacion y alias
 
@@ -352,7 +352,7 @@ Cobertura con variaciones de consulta, tipo y resultados.
 - Integracion: 0
 - API: 1
 
-**Razon del estimado:** validaciones de campos requeridos y tipo, mas estado UNNORMALIZED.
+**Razon del estimado:** validaciones de campos requeridos y tipo, mas estado `manual`.
 
 **Pruebas Parametrizadas Recomendadas:** Si
 Variaciones de tipo, pais y raw_text.
@@ -495,7 +495,7 @@ La story se considera terminada cuando:
 
 **NFR-S-001:** RBAC admin/editor para mantenimiento de catalogo
 
-- **Requisito:** solo admin/editor puede modificar catalogo
+- **Requisito:** solo `editor/admin` puede modificar catalogo
 - **Enfoque de Prueba:** intentos de acceso con rol user
 
 ### Requisitos de Usabilidad
@@ -596,11 +596,11 @@ La story se considera terminada cuando:
 **Restricciones:**
 
 - contratos de API no incluyen endpoints admin de catalogo/alias
-- Proveedor externo y SLA no definidos
+- Proveedor externo, SLA externo y cache externa quedan fuera del MVP actual
 
 **Limitaciones Conocidas:**
 
-- No se puede validar integracion real con proveedor externo hasta definirlo
+- No se valida integración externa porque queda fuera del MVP actual
 
 **Sesiones de Pruebas Exploratorias:**
 

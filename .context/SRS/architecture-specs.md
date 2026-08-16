@@ -99,18 +99,32 @@ erDiagram
   }
   catalog_teams {
     uuid id
+    string provider
+    string external_id
     string name
+    string normalized_name
     string country
+    string normalization_status
+    uuid created_by
   }
   catalog_competitions {
     uuid id
+    string provider
+    string external_id
     string name
+    string normalized_name
+    string sport
     string country
+    string normalization_status
+    uuid created_by
   }
   catalog_aliases {
     uuid id
-    string provider
-    string external_id
+    uuid team_id
+    uuid competition_id
+    string alias
+    string normalized_alias
+    uuid created_by
   }
   audit_logs {
     uuid id

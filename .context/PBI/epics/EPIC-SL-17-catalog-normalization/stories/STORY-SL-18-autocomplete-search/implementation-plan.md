@@ -12,9 +12,10 @@
 ## Estado Actual Verificado
 
 - No existen rutas `src/app/api/catalog/*`.
-- `src/types/supabase.ts` no contiene tablas de catalogo.
+- `src/types/supabase.ts` contiene tablas de catalogo: `catalog_teams`, `catalog_competitions`, `catalog_aliases`, `catalog_events`, `catalog_markets`.
 - No existen componentes de autocomplete ni servicios de catalogo.
 - `bet_legs` guarda `market` y `selection` como texto, sin FK a catalogo.
+- `bet_legs` ya dispone de FKs opcionales `event_id` y `market_id`; falta contrato para manual entries futuras.
 - Fase 2A marco catalogo como migration-first y dependencia previa a bets/recommendations.
 
 ## Dependencias
@@ -26,47 +27,49 @@
 
 ## Alcance
 
-- Buscar equipos y competiciones con query trimmeada de al menos 2 caracteres.
+- Buscar equipos y competiciones con query trimmeada de al menos 2 caracteres en catalogo local.
 - Devolver resultados normalizados por tipo.
 - Mostrar estados loading, empty y opcion de ingreso manual.
-- Mantener fuera de alcance fuzzy avanzado, temporada y sync realtime.
+- Mantener fuera de alcance fuzzy avanzado, temporada, sync realtime, cache externa y proveedor externo.
 
 ## Archivos a Tocar
 
 - `src/app/api/catalog/teams/route.ts` - search teams.
 - `src/app/api/catalog/competitions/route.ts` - search competitions.
 - `src/lib/catalog/schemas.ts` - query y response schemas.
-- `src/lib/catalog/service.ts` - busqueda local y fallback externo si se aprueba.
-- `src/lib/catalog/cache.ts` - cache por query si se implementa.
+- `src/lib/catalog/service.ts` - busqueda local.
 - `src/components/catalog/catalog-autocomplete.tsx` - componente dominio.
 - `src/lib/openapi/schemas/catalog.ts` - schemas OpenAPI.
 - Formularios de bet/recommendation - integrar autocomplete donde corresponda.
 
 ## DB/RLS Necesarios
 
-- Migration-first: requiere tablas aun inexistentes local/remoto para `catalog_teams`, `catalog_competitions`, `catalog_aliases` o modelo unificado `catalog_items`.
-- Definir `normalization_status` (`NORMALIZED|UNNORMALIZED`) y `entity_type`.
-- Indices por nombre normalizado, alias y provider ids.
-- RLS: usuarios autenticados pueden leer catalogo; writes reservados a admin/editor o server flow aprobado.
-- Si hay fallback externo/cache persistente, definir TTL, provider y stale policy.
+- Las tablas `catalog_teams`, `catalog_competitions` y `catalog_aliases` ya existen.
+- Solo se devuelven filas con `normalization_status='normalized'`.
+- Indices actuales cubren `normalized_name`; evaluar indice adicional para alias si el plan de consulta lo requiere.
+- RLS actual: usuarios autenticados leen catalogo; escritura reservada a editor/admin.
+- No hay fallback externo ni cache persistente en MVP.
 
 ## API Necesaria
 
 - `GET /api/catalog/teams?q=`.
 - `GET /api/catalog/competitions?q=`.
-- Success: `200` con `CatalogListResponse` y resultados normalizados.
-- Errors: `400` query invalida si se decide validar server-side; `401`; `503` fallback externo falla si no hay resultados locales.
+- Success: `200` con `CatalogListResponse`, resultados normalizados y `nextOffset`.
+- Errors: `400` query invalida; `401` sin sesion.
 - Debe no llamar API si `q.trim().length < 2` desde UI; API debe proteger igual.
 
 ## UI Necesaria
 
 - Input autocomplete reusable con debounce, loading, empty y manual CTA.
 - Mostrar tipo, nombre normalizado y alias si aplica.
+- Mensaje para query corta: `Escribe al menos 2 caracteres para buscar`.
 - `data-testid`: `catalogAutocomplete`, `catalog_search_input`, `catalog_suggestions_list`, `catalog_suggestion_item`, `catalog_empty_state`, `manual_entry_button`.
 
 ## Validaciones Zod
 
 - `q`: string trim, min 2, max 100.
+- `limit`: entero 1..25, default 10.
+- `offset`: entero >= 0, default 0.
 - `type`: derivado por endpoint (`team|competition`).
 - Rechazar query solo espacios y caracteres inutiles segun regla aprobada.
 
@@ -74,7 +77,7 @@
 
 - Unit: query corta/no trimmeada no busca.
 - API: devuelve equipos y competiciones normalizados.
-- API: sin resultados locales habilita empty/fallback segun estrategia.
+- API: sin resultados locales devuelve lista vacia y UI habilita ingreso manual.
 - Integration: alias matchea item normalizado.
 - E2E: autocomplete muestra sugerencias y manual CTA.
 
@@ -82,13 +85,10 @@
 
 - AC SL-18 cubiertos: autocomplete exitoso, query corta, sin resultados.
 - Build order corregido: catalogo disponible antes de tickets/recommendations que lo requieran.
-- Provider/cache definidos o fallback marcado como no implementado en MVP.
+- Provider/cache/fallback externo marcados fuera de alcance MVP.
 - Supabase types actualizados si cambia schema.
 - `bun run repo:check` pasa.
 
 ## Decisiones Abiertas
 
-- Proveedor externo, timeout y fallback exacto.
-- TTL/cache keys para busquedas.
-- Mensaje UI de query corta.
-- Modelo unificado vs tablas separadas para teams/competitions.
+- Ninguna bloqueante para MVP.

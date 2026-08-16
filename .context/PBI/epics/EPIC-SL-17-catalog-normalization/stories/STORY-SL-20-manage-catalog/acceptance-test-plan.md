@@ -48,13 +48,13 @@
 
 **Servicios externos:**
 
-- Proveedor externo de datos (si aplica para actualizaciones periodicas)
+- Ninguno en MVP. Las actualizaciones periodicas se hacen como mantenimiento local por editor/admin.
 
 **Puntos de integracion:**
 
 - UI ↔ API (mantenimiento admin)
 - API ↔ DB (upsert y alias)
-- API ↔ Auth/RBAC (solo admin)
+- API ↔ Auth/RBAC (editor/admin)
 
 ---
 
@@ -94,7 +94,7 @@
 - API ↔ Auth/RBAC
   - **Aplica a esta story:** ✅ Si
   - **Uso:** permisos admin/editor
-- API ↔ API externa
+- API ↔ Auth/RBAC
   - **Aplica a esta story:** ⚠️ Parcial
   - **Uso:** actualizaciones periodicas (si se define proveedor)
 
@@ -102,7 +102,7 @@
 
 **Para PO:**
 
-- Proveedor externo y SLA de alternativa
+- Proveedor externo fuera de alcance MVP
   - **Estado:** ⏳ Pendiente
   - **Impacto en esta story:** define providers permitidos y reglas de update
 
@@ -134,33 +134,33 @@
 
 ### Ambiguedades Identificadas
 
-**Ambiguedad 1:** Lista de providers permitidos
+**Ambiguedad 1 resuelta:** Lista de providers permitidos
 
 - **Ubicacion:** Business Rules
-- **Pregunta para PO/Dev:** cuales providers son validos y en que entorno?
-- **Impacto en testing:** no se puede cubrir validaciones ni datos reales
-- **Sugerencia:** definir enum de providers en SRS/Story
+- **Resolución Fase 4F:** no hay provider externo permitido en MVP; `provider` queda como string opcional reservado para datos ya curados.
+- **Impacto en testing:** no se prueban integraciones ni enums externos; solo validaciones de string y par `provider + external_id`.
+- **Sugerencia:** introducir enum de provider solo cuando exista integración externa real.
 
-**Ambiguedad 2:** Alcance de unicidad de alias
+**Ambiguedad 2 resuelta:** Alcance de unicidad de alias
 
 - **Ubicacion:** Business Rules
-- **Pregunta para Dev:** alias unico por entidad, por provider o global?
-- **Impacto en testing:** no se puede definir caso de duplicado correctamente
-- **Sugerencia:** explicitar regla en AC y en DB constraints
+- **Resolución Fase 4F:** alias normalizado con `lower(trim(alias))`, unico por entidad destino.
+- **Impacto en testing:** caso de duplicado debe validar `409 CATALOG_ALIAS_CONFLICT` dentro del mismo destino.
+- **Sugerencia:** aplicar constraint en DB/API durante implementación, no solo en UI.
 
-**Ambiguedad 3:** Permisos admin vs editor
+**Ambiguedad 3 resuelta:** Permisos admin vs editor
 
 - **Ubicacion:** Business Rules vs NFR-S-001
-- **Pregunta para PO/Dev:** editor puede modificar catalogo o solo admin?
-- **Impacto en testing:** no se puede definir matriz de permisos
-- **Sugerencia:** definir roles permitidos en story
+- **Resolución Fase 4F:** `editor` y `admin` pueden modificar catalogo; `user` recibe `403`.
+- **Impacto en testing:** matriz de permisos cerrada para API y UI.
+- **Sugerencia:** validar `editor`, `admin` y `user` en pruebas RBAC.
 
-**Ambiguedad 4:** Formato y obligatoriedad de season
+**Ambiguedad 4 resuelta:** Season
 
 - **Ubicacion:** Scope
-- **Pregunta para PO/Dev:** season es requerido? formato (2024/2025, 2024)?
-- **Impacto en testing:** no se pueden cubrir limites ni validaciones
-- **Sugerencia:** definir formato y reglas
+- **Resolución Fase 4F:** `season` queda fuera del MVP de catálogo local.
+- **Impacto en testing:** no se diseñan boundary tests de season en SL-20.
+- **Sugerencia:** si season vuelve, primero actualizar SRS/OpenAPI y este ATP.
 
 ---
 
@@ -233,8 +233,8 @@
 **Tipo:** Positivo
 **Prioridad:** Critica
 
-- **Dado:** admin autenticado y existe item con provider "opta" y external_id "OPTA-123"
-- **Cuando:** actualiza name "FC Barcelona" y season "2024/2025"
+- **Dado:** editor/admin autenticado y existe item con provider "opta" y external_id "OPTA-123"
+- **Cuando:** actualiza name "FC Barcelona" y country "ES"
 - **Entonces:**
   - Se actualizan los campos del item
   - Se mantiene el mismo ID y referencias asociadas
@@ -247,8 +247,8 @@
 **Tipo:** Positivo
 **Prioridad:** Alta
 
-- **Dado:** admin autenticado
-- **Cuando:** crea item con provider "sportmonk", external_id "SM-987", name "Liga Profesional", season "2024" y alias "LPF"
+- **Dado:** editor/admin autenticado
+- **Cuando:** crea competition con provider "sportmonk", external_id "SM-987", name "Liga Profesional", sport "football", country "AR" y alias "LPF"
 - **Entonces:**
   - Se crea item y alias asociado
   - Respuesta 201 con itemId
@@ -406,14 +406,14 @@ Formato: `Validar <comportamiento> <condicion>`
 
 **Precondiciones:**
 
-- Usuario admin autenticado
+- Usuario editor/admin autenticado
 - Item existente para provider/external_id
 
 **Pasos:**
 
 1. Abrir UI de catalogo admin
 2. Editar item con provider "opta" y external_id "OPTA-123"
-3. Cambiar name y season
+3. Cambiar name y country
 4. Guardar
 
 **Resultado esperado:**
@@ -701,34 +701,34 @@ Formato: `Validar <comportamiento> <condicion>`
 
 ### Preguntas criticas para PO
 
-**Pregunta 1:** cuales providers son validos para actualizaciones periodicas?
+**Pregunta 1 resuelta:** cuales providers son validos para actualizaciones periodicas?
 
-- **Contexto:** define datos de prueba y validaciones
-- **Impacto:** pruebas API incompletas
+- **Resolución Fase 4F:** no hay actualizaciones periodicas ni provider externo en MVP.
+- **Impacto:** no se requieren datos de prueba de providers externos.
 
-**Pregunta 2:** season es requerido? formato esperado?
+**Pregunta 2 resuelta:** season es requerido? formato esperado?
 
-- **Contexto:** define validaciones y limites
-- **Impacto:** no se pueden diseñar boundary tests
+- **Resolución Fase 4F:** `season` queda fuera del MVP.
+- **Impacto:** no se requieren boundary tests de season.
 
 ---
 
 ### Preguntas tecnicas para Dev
 
-**Pregunta 1:** regla exacta de unicidad de alias?
+**Pregunta 1 resuelta:** regla exacta de unicidad de alias?
 
-- **Contexto:** define duplicados y constraints
-- **Impacto:** pruebas negativas y DB constraints
+- **Resolución Fase 4F:** alias normalizado con `lower(trim(alias))`, unico por entidad destino.
+- **Impacto:** pruebas negativas y DB constraints quedan definidas.
 
-**Pregunta 2:** endpoints admin y error codes oficiales?
+**Pregunta 2 resuelta:** endpoints admin y error codes oficiales?
 
-- **Contexto:** falta en api-contracts.yaml
-- **Impacto:** no se pueden validar contratos
+- **Resolución Fase 4F:** rutas admin documentadas en `api-contracts.yaml`; alias duplicado devuelve `409 CATALOG_ALIAS_CONFLICT`.
+- **Impacto:** contratos validables.
 
-**Pregunta 3:** politica de concurrencia en upsert?
+**Pregunta 3 resuelta:** politica de concurrencia en upsert?
 
-- **Contexto:** dos admins pueden editar a la vez
-- **Impacto:** riesgo de perdida de datos
+- **Resolución Fase 4F:** last-write-wins para MVP; sin versionado hasta edición multi-admin real.
+- **Impacto:** pruebas de concurrencia avanzada fuera de alcance MVP.
 
 ---
 
@@ -827,14 +827,14 @@ Formato: `Validar <comportamiento> <condicion>`
 
 **PO:**
 
-- [ ] Confirmar providers permitidos
-- [ ] Definir formato de season
+- [x] Confirmar providers permitidos: ninguno externo en MVP; `provider` opcional reservado.
+- [x] Definir formato de season: fuera de alcance MVP.
 
 **Dev Lead:**
 
-- [ ] Definir unicidad de alias y constraints
-- [ ] Publicar endpoints admin en API contract
-- [ ] Definir politica de concurrencia
+- [x] Definir unicidad de alias y constraints: `lower(trim(alias))` unico por entidad destino.
+- [x] Publicar endpoints admin en API contract.
+- [x] Definir politica de concurrencia: last-write-wins MVP.
 
 **QA:**
 
