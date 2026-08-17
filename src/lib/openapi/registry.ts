@@ -113,6 +113,10 @@ ${apiBaseUrl}
         description: 'Local catalog search, manual entry, and maintenance',
       },
       {
+        name: 'Goals',
+        description: 'Owned capital goals, daily missions, closure, and risk limits',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
       },

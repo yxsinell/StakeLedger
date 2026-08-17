@@ -5,4 +5,5 @@ export * from './banks';
 export * from './bets';
 export * from './catalog';
 export * from './common';
+export * from './goals';
 export * from './transactions';

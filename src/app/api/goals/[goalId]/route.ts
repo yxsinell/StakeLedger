@@ -1,0 +1,41 @@
+import { codedErrorResponse, successResponse } from '@/lib/api/responses';
+import { mapGoalsError } from '@/lib/goals/http';
+import { GoalIdSchema, GoalUpdateRequestSchema } from '@/lib/goals/schemas';
+import { getGoal, updateGoal } from '@/lib/goals/service';
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
+
+const authenticate = async () => {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  return { supabase, user: error ? null : user };
+};
+
+export async function GET(_request: Request, context: { params: Promise<{ goalId: string }> }) {
+  const { supabase, user } = await authenticate();
+  if (!user) { return codedErrorResponse('Authentication required', 'AUTHENTICATION_REQUIRED', 401); }
+  const { goalId } = await context.params;
+  if (!GoalIdSchema.safeParse(goalId).success) { return codedErrorResponse('Goal not found', 'GOAL_NOT_FOUND', 404); }
+  try {
+    const goal = await getGoal(supabase, goalId);
+    return goal ? successResponse({ success: true, goal }) : codedErrorResponse('Goal not found', 'GOAL_NOT_FOUND', 404);
+  }
+  catch (caught) { return mapGoalsError(caught); }
+}
+
+export async function PATCH(request: Request, context: { params: Promise<{ goalId: string }> }) {
+  const { supabase, user } = await authenticate();
+  if (!user) { return codedErrorResponse('Authentication required', 'AUTHENTICATION_REQUIRED', 401); }
+  const { goalId } = await context.params;
+  if (!GoalIdSchema.safeParse(goalId).success) { return codedErrorResponse('Goal not found', 'GOAL_NOT_FOUND', 404); }
+  const parsed = GoalUpdateRequestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return codedErrorResponse(issue?.message ?? 'Invalid goal update', 'VALIDATION_ERROR', 400, issue?.path.join('.'));
+  }
+  try {
+    await updateGoal(createServiceRoleClient(), user.id, goalId, parsed.data);
+    const goal = await getGoal(supabase, goalId);
+    return goal ? successResponse({ success: true, goal }) : codedErrorResponse('Goal not found', 'GOAL_NOT_FOUND', 404);
+  }
+  catch (caught) { return mapGoalsError(caught); }
+}
