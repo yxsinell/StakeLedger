@@ -445,3 +445,7 @@ Formato: "Validar <comportamiento> <condicion>"
 
 **Documentacion:**
 `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-14-settle-bets/acceptance-test-plan.md`
+
+## Reconciliación ejecutable Fase 4H — 2026-08-17
+
+Las ambigüedades de half, freebet, monto e idempotencia quedan resueltas por `business-data-map.md`. Casos obligatorios: cinco resultados por pocket; mixed funding; precisión inválida con rollback; replay equivalente; payload distinto `409`; ticket cerrado; legacy no liquidable; ownership genérico `404`; saldo, transactions y audit consistentes. `settlementAmount` no es input.

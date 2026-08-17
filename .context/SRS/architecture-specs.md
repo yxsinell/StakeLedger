@@ -216,6 +216,16 @@ erDiagram
 - Migration RBAC local y remota reconciliada como `20260816145742_add_admin_role_management.sql`.
 - Las 4 bets legacy remotas se preservan sin borrado ni backfill; constraints Fase 4G se aplican a filas nuevas sin validar retrospectivamente su forma.
 
+## 4H. Data Flow (Settlement, Cashout and Audit)
+
+1. BFF autentica cookie y exige `Idempotency-Key` UUID.
+2. Cliente `service_role` invoca RPC `SECURITY INVOKER`; `authenticated` no tiene `EXECUTE` ni DML financiero.
+3. RPC registra idempotencia y bloquea ticket/pockets en orden determinista con `FOR UPDATE`.
+4. Settlement calcula retornos por funding y precisión exacta; cashout valida 100% cash y crea carryover sin débito.
+5. Cambios de ticket, pockets, transactions, split, auditoría e idempotencia comparten una transacción PostgreSQL.
+6. Cualquier error revierte todo; recurso ajeno o inexistente devuelve `404` genérico.
+7. `audit_logs` es append-only por trigger y grants; lectura usa RLS owner/admin y orden estable.
+
 ---
 
 ## 5. Security Architecture

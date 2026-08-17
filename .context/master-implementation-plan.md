@@ -43,7 +43,7 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 | RBAC | Auth implementada | Administración de roles y permisos de editor/admin. |
 | Catálogo | RBAC | Catálogo local, entrada manual y alias. |
 | Bets | Implementado Fase 4G; validación manual pendiente | Tickets, financiación y reservas. |
-| Settlement | Bets | Retornos por pocket, cashout y auditoría. |
+| Settlement | Implementado Fase 4H | Retornos por pocket, cashout cash-only y auditoría append-only. |
 | Goals | Settlement | Metas y riesgo sobre resultados fiables. |
 | Recommendations | RBAC, catálogo, bets | Feed y prefill sin creación implícita de ticket. |
 | Metrics | Settlement | Métricas derivadas trazables. |
@@ -62,3 +62,11 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 - Elementos interactivos incluyen `data-testid`.
 - Tipos Supabase se regeneran tras cambios de schema.
 - Postura de seguridad revisada si se alteran grants, RLS o RPCs.
+
+## Fase 4H implementada
+
+- SL-14: liquidación canónica por funding, precisión exacta, idempotencia y RPC transaccional.
+- SL-15: cashout parcial 100% cash, original cerrado, derivado open, legs copiadas y carryover trazable.
+- SL-16: auditoría append-only reforzada, lectura owner/admin y detalle de ticket conectado.
+- Migrations remotas: `20260817045500_implement_settlement_cashout_audit` y `20260817045542_index_settlement_cashout_references`.
+- Legacy se conserva y permanece no liquidable sin reservas modernas.

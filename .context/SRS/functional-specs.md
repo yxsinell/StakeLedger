@@ -104,26 +104,26 @@
 ## FR-011: El sistema debe liquidar apuestas con resultados completos y parciales
 
 - **Relacionado a:** EPIC-SL-03, US 3.3
-- **Input:** bet_id, result (win|lose|void|half_win|half_loss), settlement_amount
-- **Processing:** calcular retorno, actualizar pockets, registrar ledger
-- **Output:** estado final, retorno, beneficio
-- **Validations:** bet en estado abierto, result valido
+- **Input:** `betId`, `result=won|lost|void|half_won|half_lost` e `Idempotency-Key` UUID; el cliente no envía retorno
+- **Processing:** RPC única bloquea ticket y pockets, valida funding/reservas modernos, calcula por pocket según Business Data Map, acredita retornos, registra transactions y auditoría y deja `status=settled`
+- **Output:** estado final, retorno, beneficio, balances, asientos y replay
+- **Validations:** ticket propio `open`, `funding_status=reserved`, funding exacto y trazable; cada cálculo con máximo dos decimales sin redondeo; legacy no liquidable; replay equivalente y conflicto `409`
 
 ## FR-012: El sistema debe soportar cashout parcial dividiendo el ticket
 
 - **Relacionado a:** EPIC-SL-03, US 3.4
-- **Input:** bet_id, cashout_amount, remaining_stake
-- **Processing:** cerrar parte A, crear ticket B con stake restante
-- **Output:** bet_id_closed, bet_id_open
-- **Validations:** cashout_amount > 0, remaining_stake > 0
+- **Input:** `betId`, `cashoutAmount`, `remainingStake` e `Idempotency-Key` UUID
+- **Processing:** RPC única cierra original como cashout, acredita payout a cash, crea derivado open, copia legs y registra carryover cash sin segundo débito
+- **Output:** original cerrado, derivado abierto, evidencia cashout, balances, asientos y replay
+- **Validations:** ticket propio open/reserved financiado exactamente 100% cash; `cashoutAmount>0`; `0<remainingStake<stake`; máximo dos decimales sin redondeo
 
 ## FR-013: El sistema debe registrar auditoria de movimientos
 
 - **Relacionado a:** EPIC-SL-03, US 3.5
-- **Input:** entity_type, entity_id, action, actor_id
-- **Processing:** guardar evento inmutable con timestamp
-- **Output:** audit_id
-- **Validations:** action en catalogo permitido
+- **Input:** operaciones internas autorizadas; consulta BFF `entityType=bet`, `entityId`, `limit`
+- **Processing:** RPC inserta eventos; trigger impide UPDATE/DELETE; grants impiden DML de aplicación; lectura RLS por owner/admin
+- **Output:** eventos por `created_at DESC, id DESC`
+- **Validations:** catálogo permitido, actor obligatorio, entidad propia o admin; sin retención destructiva MVP
 
 ## FR-014: El sistema debe permitir busqueda con autocompletado de catalogo
 

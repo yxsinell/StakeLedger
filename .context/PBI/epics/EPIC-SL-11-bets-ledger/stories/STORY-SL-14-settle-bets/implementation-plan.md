@@ -93,3 +93,7 @@
 - Reglas freebet por resultado.
 - Fuente de verdad de `settlementAmount`.
 - Idempotencia para doble submit.
+
+## Implementación Fase 4H — 2026-08-17
+
+Decisiones abiertas cerradas. Implementación real: migration `20260817045500`, RPC `settle_bet`, BFF `/api/bets/{betId}/settle`, reglas puras en `settlement-rules.ts`, UI en detalle ticket, OpenAPI runtime/estático y auditoría embebida. Atomicidad vive en PostgreSQL; TypeScript valida y orquesta.

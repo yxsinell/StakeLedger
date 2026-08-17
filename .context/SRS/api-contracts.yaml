@@ -338,9 +338,10 @@ paths:
     post:
       summary: Settle bet
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/BetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -353,15 +354,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BetResponse'
+                $ref: '#/components/schemas/BetSettlementResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /api/bets/{betId}/cashout:
     post:
       summary: Cashout partial
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/BetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -375,6 +387,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BetCashoutResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/audit:
+    get:
+      summary: List immutable audit events for an owned bet
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: entityType
+          required: true
+          schema: {type: string, enum: [bet]}
+        - in: query
+          name: entityId
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Events ordered by createdAt DESC and id DESC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  events:
+                    type: array
+                    items: {$ref: '#/components/schemas/AuditEvent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
   /api/catalog/teams:
     get:
@@ -1340,34 +1395,64 @@ components:
 
     BetSettleRequest:
       type: object
+      additionalProperties: false
       properties:
         result:
           type: string
-          enum: [win, lose, void, half_win, half_loss]
-        settlementAmount:
-          type: number
+          enum: [won, lost, void, half_won, half_lost]
       required: [result]
 
     BetCashoutRequest:
       type: object
+      additionalProperties: false
       properties:
         cashoutAmount:
           type: number
+          minimum: 0
+          exclusiveMinimum: true
+          multipleOf: 0.01
         remainingStake:
           type: number
+          minimum: 0
+          exclusiveMinimum: true
+          multipleOf: 0.01
       required: [cashoutAmount, remainingStake]
+
+    BetSettlementResponse:
+      type: object
+      description: Server-calculated settlement, balances, immutable transactions and replay status.
+      properties:
+        success: {type: boolean}
+        bet: {type: object}
+        balances: {$ref: '#/components/schemas/BetBalances'}
+        transactions: {type: array, items: {type: object}}
+        replayed: {type: boolean}
+      required: [success, bet, balances, transactions, replayed]
 
     BetCashoutResponse:
       type: object
+      description: Atomic source closure, derived open ticket, cashout evidence and carryover.
       properties:
         success:
           type: boolean
-        closedBetId:
-          type: string
-          format: uuid
-        openBetId:
-          type: string
-          format: uuid
+        sourceBet: {type: object}
+        derivedBet: {type: object}
+        cashout: {type: object}
+        balances: {type: object}
+        transactions: {type: array, items: {type: object}}
+        replayed: {type: boolean}
+      required: [success, sourceBet, derivedBet, cashout, balances, transactions, replayed]
+
+    AuditEvent:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        entityType: {type: string, enum: [bank, transaction, bet, goal, recommendation, catalog, user]}
+        entityId: {type: string, format: uuid}
+        action: {type: string}
+        actorId: {type: string, format: uuid}
+        createdAt: {type: string, format: date-time}
+      required: [id, entityType, entityId, action, actorId, createdAt]
 
     CatalogManualRequest:
       type: object

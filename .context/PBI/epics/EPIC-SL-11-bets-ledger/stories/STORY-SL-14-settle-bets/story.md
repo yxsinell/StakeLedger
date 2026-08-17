@@ -166,3 +166,12 @@ See: `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-14-settle-bets/
 - **PRD:** `.context/PRD/mvp-scope.md`
 - **SRS:** `.context/SRS/functional-specs.md` (FR-011)
 - **API Contracts:** `.context/SRS/api-contracts.yaml`
+
+## Reconciliación Fase 4H — 2026-08-17
+
+- Resultados canónicos: `won|lost|void|half_won|half_lost`; `status=settled` y `result` guarda desenlace.
+- Input: resultado e `Idempotency-Key` UUID. Retorno y beneficio son autoritativos del servidor.
+- Cash/bonus: won `aporte×cuota`, void `aporte`, half_won `aporte×(cuota+1)/2`, half_lost `aporte/2`, lost `0`.
+- Freebet: won acredita beneficio a cash; void devuelve aporte a freebet; half_won divide void/beneficio; half_lost devuelve mitad; lost `0`.
+- Solo tickets modernos open/reserved con funding y reservas exactas. Legacy permanece intacto y no liquidable.
+- RPC única bloquea ticket/pockets, registra transactions, audit e idempotencia; máximo dos decimales sin redondeo.

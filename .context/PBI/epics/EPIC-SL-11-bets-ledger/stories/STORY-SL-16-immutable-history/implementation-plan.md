@@ -92,3 +92,7 @@
 - Permisos admin sobre historiales ajenos.
 - Politica de retencion.
 - Criterio de orden estable con timestamps iguales.
+
+## Implementación Fase 4H — 2026-08-17
+
+Decisiones abiertas cerradas. Trigger, catálogo e índice base ya existían; Fase 4H refuerza grants, agrega acciones `returned|derived`, enlaza transactions con bet/cashout y expone consulta cookie-BFF y panel de auditoría en detalle ticket.

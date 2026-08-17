@@ -1,6 +1,6 @@
 # Postura de Seguridad Supabase
 
-> Actualizado: 2026-08-16. Evidencia: advisors del proyecto remoto `ziqbjajprkoukezhgidr` y 21 migrations locales/remotas sincronizadas.
+> Actualizado: 2026-08-17. Evidencia: advisors del proyecto remoto `ziqbjajprkoukezhgidr` y migrations locales/remotas sincronizadas.
 
 ## Principios operativos
 
@@ -31,6 +31,8 @@ La protección usa comprobación contra Have I Been Pwned. Es una configuración
 | `transaction_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede ningún privilegio a `anon` ni `authenticated`; solo la RPC SECURITY DEFINER puede leer o escribir la tabla. |
 | `create_bet_with_funding` SECURITY INVOKER | Superficie BFF restringida | Aceptado: `EXECUTE` solo para `service_role`; `anon` y `authenticated` no pueden invocarla ni escribir directamente bets, legs o funding. |
 | `bet_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede privilegios a `anon` ni `authenticated`; solo `service_role` la usa dentro de la RPC atómica. |
+| Idempotencias settlement/cashout con RLS sin policy | Defensa intencional | Aceptado: tablas sin grants de aplicación; RPCs `SECURITY INVOKER` exclusivas de `service_role`. |
+| `settle_bet` y `partial_cashout_bet` | Superficie BFF restringida | `SECURITY INVOKER`, `search_path=''`, ownership, locks e inputs validados; `EXECUTE` solo `service_role`. |
 | `is_admin` e `is_catalog_editor` SECURITY DEFINER ejecutables por `authenticated` | Helper RLS intencional | Aceptado temporalmente: devuelven booleano del usuario actual y permiten políticas RLS. |
 | FKs sin índice e índices sin uso | Rendimiento, no seguridad | Diferir hasta que los flujos correspondientes tengan tráfico y planes de consulta reales. |
 

@@ -381,3 +381,7 @@ Formato: "Validar <comportamiento> <condicion>"
 
 **Documentacion:**
 `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-16-immutable-history/acceptance-test-plan.md`
+
+## Reconciliación ejecutable Fase 4H — 2026-08-17
+
+Endpoint, permisos, retención y orden quedan resueltos. Casos obligatorios: evento por efecto financiero; UPDATE/DELETE bloqueados; DML authenticated denegado; owner/admin visible y acceso cruzado invisible; orden estable; settlement/cashout explicables desde bets, transactions y audit; rollback sin evidencia parcial.

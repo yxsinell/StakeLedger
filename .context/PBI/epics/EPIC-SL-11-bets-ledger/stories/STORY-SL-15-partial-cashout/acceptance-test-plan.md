@@ -400,3 +400,7 @@ Formato: "Validar <comportamiento> <condicion>"
 
 **Documentacion:**
 `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-15-partial-cashout/acceptance-test-plan.md`
+
+## Reconciliación ejecutable Fase 4H — 2026-08-17
+
+El caso antiguo de funding mixto cambia a rechazo. Casos obligatorios: split cash-only; payout mayor o menor al stake permitido; remaining cero/igual/mayor rechazado; ticket cerrado; bonus/freebet/mix rechazados; replay/conflicto; ownership `404`; carryover sin débito; original/derivado/legs/transactions/audit atómicos y rollback completo.

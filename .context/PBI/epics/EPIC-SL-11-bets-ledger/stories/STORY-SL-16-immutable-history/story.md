@@ -165,3 +165,11 @@ See: `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-16-immutable-hi
 - **PRD:** `.context/PRD/mvp-scope.md`
 - **SRS:** `.context/SRS/functional-specs.md` (FR-013)
 - **API Contracts:** `.context/SRS/api-contracts.yaml`
+
+## Reconciliación Fase 4H — 2026-08-17
+
+- `audit_logs` es append-only por trigger; `authenticated` carece de INSERT/UPDATE/DELETE/TRUNCATE.
+- Settlement/cashout registran retorno, cierre y creación derivada; cada crédito tiene transaction enlazada.
+- Owner/editor leen evidencia propia y admin según RLS. Entidad ajena/inexistente devuelve respuesta genérica.
+- Consulta MVP: `GET /api/audit?entityType=bet&entityId=<uuid>&limit=1..100`, orden `created_at DESC, id DESC`.
+- Sin soft delete ni retención destructiva. Rechazos revierten y no generan auditoría decorativa.

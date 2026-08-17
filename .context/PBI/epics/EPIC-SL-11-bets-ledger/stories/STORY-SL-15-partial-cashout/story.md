@@ -166,3 +166,11 @@ See: `.context/PBI/epics/EPIC-SL-11-bets-ledger/stories/STORY-SL-15-partial-cash
 - **PRD:** `.context/PRD/mvp-scope.md`
 - **SRS:** `.context/SRS/functional-specs.md` (FR-012)
 - **API Contracts:** `.context/SRS/api-contracts.yaml`
+
+## Reconciliación Fase 4H — 2026-08-17
+
+- MVP solo admite tickets modernos open/reserved financiados exactamente 100% cash.
+- `cashoutAmount` es payout y no se compara con stake; `remainingStake` debe cumplir `0 < remaining < stake original`.
+- Original queda `status=result=cashout`; derivado queda open, copia legs y recibe funding cash.
+- `bet_carryover` enlaza reserva original con derivado sin segundo débito del pocket.
+- Operación, payout, split, transactions, audit e idempotencia se ejecutan en RPC única.

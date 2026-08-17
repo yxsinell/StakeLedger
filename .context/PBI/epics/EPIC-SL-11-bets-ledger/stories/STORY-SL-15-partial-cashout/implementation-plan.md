@@ -93,3 +93,7 @@
 - Si `remainingStake` se envia o se calcula backend.
 - Reglas de retorno del cashout parcial.
 - Idempotencia para doble submit.
+
+## Implementación Fase 4H — 2026-08-17
+
+Decisiones abiertas cerradas. Implementación real: migration `20260817045500`, RPC `partial_cashout_bet`, BFF `/api/bets/{betId}/cashout`, UI conectada y trazabilidad `source_bet_id=original`, `bet_id=derivado`, `split_group_id`, `transaction.bet_id/cashout_id`.
