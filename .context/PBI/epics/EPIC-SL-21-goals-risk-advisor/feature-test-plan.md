@@ -1,7 +1,7 @@
 ## 📋 Feature Test Plan - Generated 2026-03-21
 
 **QA Lead:** AI-Generated
-**Status:** Draft - Pending Team Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -315,4 +315,27 @@ User → UI Goals → API /api/goals → DB goals → UI (mision diaria)
 - Boundary: 2
 - Integration: 1
 
-**Rationale for esti
+**Rationale for estimate:** umbrales opt-in, cap fijo, pérdida diaria y alternativas explícitas.
+
+---
+
+### STORY-SL-26: Close goal
+
+**Complexity:** Medium
+**Estimated Test Cases:** 6
+
+- Positive: completed al alcanzar target y cancelled bajo target
+- Negative: completed sin target y ownership cruzado
+- Boundary: cash exactamente igual a target
+- Idempotency: cierre repetido conserva estado y `closed_at`
+- Integration: goal cerrada no se recalcula tras settlement
+
+---
+
+## Phase 4I Canonical Test Decisions
+
+- Suggested odds y daily profit usan fórmulas exactas; jamás redondean.
+- Recálculo ocurre dentro de `settle_bet`; no existe endpoint manual.
+- Risk limits: 40% cash fijo; max odds y pérdida diaria opt-in.
+- Cobertura automatizada: create/update/detail, bet vinculada + settlement, history único, riesgo, cierre, ownership RLS y concurrencia de una active por bank.
+- Evidencia y resultados se registran en `.context/reports/phase-4i-verification.md`; no se presupone ejecución remota.

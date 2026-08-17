@@ -33,6 +33,7 @@ La protección usa comprobación contra Have I Been Pwned. Es una configuración
 | `bet_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede privilegios a `anon` ni `authenticated`; solo `service_role` la usa dentro de la RPC atómica. |
 | Idempotencias settlement/cashout con RLS sin policy | Defensa intencional | Aceptado: tablas sin grants de aplicación; RPCs `SECURITY INVOKER` exclusivas de `service_role`. |
 | `settle_bet` y `partial_cashout_bet` | Superficie BFF restringida | `SECURITY INVOKER`, `search_path=''`, ownership, locks e inputs validados; `EXECUTE` solo `service_role`. |
+| RPCs Fase 4I goals/risk y wrappers bets | Superficie BFF restringida | Migration local usa `SECURITY INVOKER`, `search_path=''`, locks y `EXECUTE` solo `service_role`; `authenticated` conserva SELECT RLS y pierde DML directo sobre goals/risk. Aplicación remota pendiente. |
 | `is_admin` e `is_catalog_editor` SECURITY DEFINER ejecutables por `authenticated` | Helper RLS intencional | Aceptado temporalmente: devuelven booleano del usuario actual y permiten políticas RLS. |
 | FKs sin índice e índices sin uso | Rendimiento, no seguridad | Diferir hasta que los flujos correspondientes tengan tráfico y planes de consulta reales. |
 

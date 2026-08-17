@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-21 (Goals and Risk Advisor)
 **Priority:** High
 **Story Points:** 3
-**Status:** To Do
+**Status:** Implemented locally - remote migration pending
 **Assignee:** null
 
 ---
@@ -64,7 +64,9 @@
 
 - target_amount > base_amount
 - deadline debe ser futura
-- strategy permitido: conservative, accelerated (si se usa)
+- strategy obligatorio: conservative, balanced, aggressive
+- stake_preference es importe monetario obligatorio exacto a dos decimales
+- una sola meta active por bank; base y bank son inmutables
 
 ---
 

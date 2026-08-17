@@ -734,7 +734,7 @@ paths:
     get:
       summary: List goals
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       responses:
         '200':
           description: Goal list
@@ -745,7 +745,7 @@ paths:
     post:
       summary: Create goal
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -759,12 +759,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GoalResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/goals/{goalId}:
     get:
       summary: Get goal details
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/GoalId'
       responses:
@@ -774,36 +778,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GoalResponse'
-
-  /api/goals/{goalId}/recalculate:
-    post:
-      summary: Recalculate goal
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      summary: Update mutable active-goal parameters
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/GoalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GoalUpdateRequest'}
       responses:
         '200':
-          description: Goal recalculated
+          description: Goal updated and mission recalculated atomically
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GoalResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/goals/{goalId}/close:
     post:
       summary: Close goal
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/GoalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GoalCloseRequest'}
       responses:
         '200':
           description: Goal closed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/GoalResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/risk-limits:
+    get:
+      summary: Get current user's risk limits
+      security:
+        - cookieAuth: []
+      responses:
+        '200': {description: Risk limits, content: {application/json: {schema: {$ref: '#/components/schemas/RiskLimitsResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    patch:
+      summary: Configure opt-in max odds and max daily loss
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RiskLimitsPatchRequest'}
+      responses:
+        '200': {description: Risk limits updated, content: {application/json: {schema: {$ref: '#/components/schemas/RiskLimitsResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
 
   /api/recommendations:
     get:
@@ -1159,6 +1203,10 @@ components:
         bankId:
           type: string
           format: uuid
+        goalId:
+          type: string
+          format: uuid
+          nullable: true
         legs:
           type: array
           minItems: 1
@@ -1341,6 +1389,10 @@ components:
         id:
           type: string
           format: uuid
+        goalId:
+          type: string
+          format: uuid
+          nullable: true
         status:
           type: string
           enum: [open]
@@ -1364,7 +1416,7 @@ components:
           maxItems: 3
           items:
             $ref: '#/components/schemas/BetFundingReservation'
-      required: [id, status, fundingStatus, stakeAmount, stakeLevel, odds, legs, funding]
+      required: [id, goalId, status, fundingStatus, stakeAmount, stakeLevel, odds, legs, funding]
 
     BetFundingReservation:
       type: object
@@ -1587,6 +1639,7 @@ components:
 
     GoalCreateRequest:
       type: object
+      additionalProperties: false
       properties:
         bankId:
           type: string
@@ -1602,8 +1655,48 @@ components:
           type: number
         strategy:
           type: string
-          enum: [conservative, accelerated]
-      required: [bankId, baseAmount, targetAmount, deadline]
+          enum: [conservative, balanced, aggressive]
+      required: [bankId, baseAmount, targetAmount, deadline, stakePreference, strategy]
+
+    GoalUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        targetAmount: {type: number, exclusiveMinimum: 0, multipleOf: 0.01}
+        deadline: {type: string, format: date}
+        stakePreference: {type: number, exclusiveMinimum: 0, multipleOf: 0.01}
+        strategy: {type: string, enum: [conservative, balanced, aggressive]}
+
+    GoalCloseRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [completed, cancelled]}
+        confirmed: {type: boolean, enum: [true]}
+        reason: {type: string, minLength: 1, maxLength: 500}
+      required: [status, confirmed]
+
+    RiskLimitsPatchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        maxOdds: {type: number, nullable: true, exclusiveMinimum: 1, multipleOf: 0.0001}
+        maxDailyLoss: {type: number, nullable: true, exclusiveMinimum: 0, multipleOf: 0.01}
+
+    RiskLimitsResponse:
+      type: object
+      properties:
+        success: {type: boolean, enum: [true]}
+        riskLimits:
+          type: object
+          properties:
+            maxOdds: {type: number, nullable: true}
+            maxStakePercentage: {type: number, enum: [40]}
+            maxDailyLoss: {type: number, nullable: true}
+          required: [maxOdds, maxStakePercentage, maxDailyLoss]
+      required: [success, riskLimits]
 
     GoalResponse:
       type: object
@@ -1612,6 +1705,7 @@ components:
           type: boolean
         goal:
           $ref: '#/components/schemas/Goal'
+      required: [success, goal]
 
     GoalListResponse:
       type: object
@@ -1622,6 +1716,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Goal'
+      required: [success, goals]
 
     Goal:
       type: object
@@ -1631,6 +1726,21 @@ components:
           format: uuid
         status:
           type: string
+          enum: [active, completed, cancelled]
+        bank:
+          type: object
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+            currency: {type: string}
+          required: [id, name, currency]
+        currentCash:
+          type: number
+        remainingAmount:
+          type: number
+        calendarDays:
+          type: integer
+          minimum: 1
         baseAmount:
           type: number
         targetAmount:
@@ -1638,10 +1748,42 @@ components:
         deadline:
           type: string
           format: date
+        stakePreference:
+          type: number
+          exclusiveMinimum: 0
+          multipleOf: 0.01
+        strategy:
+          type: string
+          enum: [conservative, balanced, aggressive]
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closureReason:
+          type: string
+          nullable: true
         dailyProfit:
           type: number
         suggestedOdds:
           type: number
+          minimum: 1
+        progressPct:
+          type: number
+          minimum: 0
+          maximum: 100
+        history:
+          type: array
+          items: {type: object}
+        riskAssessment:
+          type: object
+          properties:
+            status: {type: string, enum: [ok, blocked]}
+            maxOdds: {type: number, nullable: true}
+            alternatives: {type: array, items: {type: object}}
+          required: [status, maxOdds, alternatives]
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+      required: [id, bank, status, baseAmount, targetAmount, deadline, stakePreference, strategy, closedAt, closureReason, dailyProfit, suggestedOdds, currentCash, remainingAmount, calendarDays, progressPct, history, riskAssessment, createdAt, updatedAt]
 
     RecommendationCreateRequest:
       type: object

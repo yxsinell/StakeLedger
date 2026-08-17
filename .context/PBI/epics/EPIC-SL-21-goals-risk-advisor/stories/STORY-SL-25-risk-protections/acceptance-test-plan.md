@@ -1,7 +1,7 @@
 ## 🧪 Acceptance Test Plan - Generated 2026-03-21
 
 **QA Engineer:** AI-Generated
-**Status:** Draft - Pending PO/Dev Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -230,7 +230,7 @@
 
 - **Given:** usuario sin limites personalizados
 - **When:** sistema valida suggested_odds
-- **Then:** aplica limites por defecto
+- **Then:** no inventa max odds ni max daily loss; solo permanece el cap fijo 40% cash
 
 ---
 

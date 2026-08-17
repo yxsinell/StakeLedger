@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-21 (Goals and Risk Advisor)
 **Priority:** High
 **Story Points:** 2
-**Status:** To Do
+**Status:** Implemented locally - remote migration pending
 **Assignee:** null
 
 ---
@@ -64,6 +64,7 @@
 
 - Meta debe estar activa para mostrar mision diaria
 - Cuota sugerida calculada segun stake habitual
+- Target alcanzado muestra daily profit 0 y suggested odds 1; progreso se limita a 0..100.
 
 ---
 

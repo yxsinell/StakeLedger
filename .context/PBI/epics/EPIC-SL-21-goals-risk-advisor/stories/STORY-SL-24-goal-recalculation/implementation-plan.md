@@ -87,7 +87,4 @@
 
 ## Decisiones Abiertas
 
-- Campo/tabla de vinculo bet-goal.
-- Idempotency key/source event.
-- Recalculo para void/half results.
-- Recalculo sin settlement asociado permitido o no.
+- Resueltas Fase 4I: vínculo `bets.goal_id`; idempotencia por unique `(goal_id,bet_id)`; todos los resultados canónicos recalculan desde cash final; no se permite recálculo sin settlement.

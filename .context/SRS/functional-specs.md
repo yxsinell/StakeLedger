@@ -152,42 +152,42 @@
 ## FR-017: El sistema debe permitir crear metas con parametros obligatorios
 
 - **Relacionado a:** EPIC-SL-05, US 5.1
-- **Input:** bank_id, base_amount, target_amount, deadline, stake_preference, strategy
-- **Processing:** calcular brecha, dias disponibles, beneficio diario
-- **Output:** goal_id, daily_profit, suggested_odds
-- **Validations:** target_amount > base_amount, deadline futura
+- **Input:** `bankId`, `baseAmount`, `targetAmount`, `deadline`, `stakePreference` monetario y `strategy=conservative|balanced|aggressive`
+- **Processing:** RPC `SECURITY INVOKER` exclusiva de `service_role` bloquea bank/cash, exige bank propio y una sola goal activa por bank, calcula mision exacta y registra history/audit
+- **Output:** goal con bank, cash actual, mision, progreso, history y risk assessment
+- **Validations:** target > base; deadline futura; montos a dos decimales; stake habitual obligatorio; no redondear; bank ajeno o inexistente responde 404 generico
 
 ## FR-018: El sistema debe mostrar la mision diaria
 
 - **Relacionado a:** EPIC-SL-05, US 5.2
 - **Input:** goal_id
-- **Processing:** calcular cuota sugerida segun stake y brecha
-- **Output:** daily_profit, suggested_odds, progress_pct
-- **Validations:** goal activa
+- **Processing:** `remaining=max(target-cash,0)`; `calendarDays=max(deadline-current_date,1)`; `dailyProfit=remaining/calendarDays`; `suggestedOdds=1+dailyProfit/stakePreference`
+- **Output:** daily profit exacto a dos decimales, suggested odds exacta a cuatro, y progreso `((cash-base)/(target-base))*100` limitado a `0..100`
+- **Validations:** goal activa; si target ya esta alcanzado, daily profit es 0 y suggested odds es 1; una goal cerrada no expone mision activa
 
 ## FR-019: El sistema debe recalcular metas tras apuestas finalizadas
 
 - **Relacionado a:** EPIC-SL-05, US 5.3
-- **Input:** goal_id, bet_result
-- **Processing:** actualizar bank actual, recomputar brecha y dias
-- **Output:** nueva mision diaria
-- **Validations:** bet vinculada a la meta
+- **Input:** settlement de una bet con `goal_id` opcional
+- **Processing:** `settle_bet` recalcula dentro de la misma transaccion despues de actualizar cash; inserta un unico history `recalculated` por `(goal_id,bet_id)`
+- **Output:** settlement y nueva mision persistidos atomicamente
+- **Validations:** bet propia, goal activa propia y del mismo bank; error de precision revierte settlement completo; no existe endpoint publico de recalculo
 
 ## FR-020: El sistema debe aplicar protecciones de riesgo
 
 - **Relacionado a:** EPIC-SL-05, US 5.4
-- **Input:** goal_id, suggested_odds
-- **Processing:** comparar con limites, bloquear cuotas suicidas
-- **Output:** alertas y recomendaciones de reconfiguracion
-- **Validations:** limites configurados por usuario
+- **Input:** `maxOdds` y `maxDailyLoss` opcionales; creación de bet con odds/stake
+- **Processing:** cap inmutable de stake `40% cash`; valida max odds; pérdida diaria realizada suma `abs(profit_amount<0)` de bets settled/cashout de hoy y agrega stake propuesto como peor caso
+- **Output:** errores específicos de riesgo; goal detail bloqueado si suggested odds supera max odds y alternativas para stake, deadline y target
+- **Validations:** límites exactos o null; riesgo no modifica settlements existentes ni ajusta metas automáticamente
 
 ## FR-021: El sistema debe permitir cierre anticipado de metas
 
 - **Relacionado a:** EPIC-SL-05, US 5.5
-- **Input:** goal_id
-- **Processing:** marcar meta como completed, detener calculos
-- **Output:** status actualizado
-- **Validations:** goal alcanzada o confirmacion explicita
+- **Input:** `{status:'completed'|'cancelled', confirmed:true, reason?}`
+- **Processing:** RPC atómica fija `closed_at`, closure reason, history `closed` y audit
+- **Output:** goal cerrada; reintento conserva estado y fecha sin mutar
+- **Validations:** completed exige cash >= target; cancelled permite objetivo no alcanzado; no hay delete ni reapertura
 
 ## FR-022: El sistema debe permitir publicar recomendaciones normalizadas
 

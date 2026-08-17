@@ -68,9 +68,9 @@ catalog_events + catalog_markets ----> bet_legs | recommendations
 | `bet_funding` | Hereda titularidad de bet | Existe. Cada pocket positivo crea una fila enlazada a su `bet_reserve`. |
 | `bet_cashouts` | Hereda titularidad de bet | Implementado. `source_bet_id` identifica el original cerrado y `bet_id` el derivado abierto. |
 | `audit_logs` | Actor y entidad auditada | Existe. Inmutable; ownership de lectura depende de actor, entidad propia o admin. |
-| `goals` | `user_id`, y bank del mismo titular | Existe. Flujo futuro. |
-| `goal_history` | Hereda titularidad de goal | Existe. Historial futuro de creación, misión, recálculo y cierre. |
-| `risk_limits` | `user_id`, único | Existe. Flujo futuro; un conjunto de límites por usuario. |
+| `goals` | `user_id`, y bank del mismo titular | Implementación local Fase 4I; una active por bank, sin deletes. Migration remota pendiente. |
+| `goal_history` | Hereda titularidad de goal | Implementación local: creación, snapshot diario, recálculo por bet y cierre. |
+| `risk_limits` | `user_id`, único | Implementación local: max odds y pérdida diaria opt-in; cap de stake fijo 40%. |
 | catálogo | `user` crea entradas manuales; `editor/admin` mantienen entidades normalizadas y alias; autenticados leen | Existe como `catalog_teams`, `catalog_competitions`, `catalog_aliases`, `catalog_events`, `catalog_markets`. MVP local y curado, sin proveedor externo. |
 | `recommendations` | Editor/admin crea y actualiza | Existe. Feed futuro con estados `draft`, `published`, `inactive`. |
 | `recommendation_follows` | `user_id` | Existe. Seguimiento futuro, único por usuario y recomendación. |
@@ -219,7 +219,7 @@ Consulta >= 2 caracteres -> catálogo local -> resultado normalizado
 | Orden | exact match, prefijo por nombre, prefijo por alias, nombre ascendente, id ascendente. |
 | Resultado | Solo entidades `normalized`; empty state ofrece ingreso manual. |
 
-### Metas y riesgo — Planificado
+### Metas y riesgo — Implementado localmente en Fase 4I
 
 ```text
 Usuario -> goal activa vinculada a bank -> misión diaria
@@ -231,6 +231,10 @@ riesgo excedido -> bloquear recomendación de cuota, no liquidación existente
 - **Adoptado:** una meta activa por bank para evitar objetivos concurrentes incompatibles.
 - **Adoptado:** límites de riesgo son configuración explícita del usuario; sin límite configurado se aplica el cap MVP del 40% de cash, no se inventa una cuota máxima.
 - **Adoptado:** cada liquidación vinculada genera como máximo un `goal_history(event_type=recalculated)` por índice único existente.
+- **Implementado local:** creación/update/cierre/configuración usan RPCs atómicas `SECURITY INVOKER` exclusivas de `service_role`; lecturas BFF usan RLS.
+- **Confirmado:** `remaining=max(target-cash,0)`, días naturales mínimo 1, daily profit exacto a dos decimales y suggested odds exacta a cuatro; target alcanzado produce `0` y `1`.
+- **Confirmado:** completed exige cash >= target; cancelled permite cierre bajo target; reintento no muta.
+- **Confirmado:** creación de ticket valida goal opcional, max odds y pérdida diaria; riesgo jamás altera settlement ya realizado.
 
 ### Recomendación y seguimiento — Planificado
 
@@ -288,7 +292,7 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding`, `bet_idempotencies`, `transactions`; `20260816192251`, `20260816192515` | Implementado: `POST /api/bets`, `/dashboard/bets/new` |
 | Liquidación, cashout y auditoría | FR-011..013, SL-14..16 | `bets`, `bet_cashouts`, `transactions`, `audit_logs`, idempotencias; `20260817045500`, `20260817045542` | Implementado: `/api/bets/{id}/settle|cashout`, `/api/audit`, detalle ticket |
 | Catálogo manual y normalizado | FR-014..016, SL-18..20 | tablas `catalog_*` | Futuro: `/api/catalog/*` |
-| Meta y riesgo | FR-017..021, SL-22..26 | `goals`, `goal_history`, `risk_limits` | Futuro: `/api/goals/*` |
+| Meta y riesgo | FR-017..021, SL-22..26 | `goals`, `goal_history`, `risk_limits`; `20260817160357` | Implementado: `/api/goals/*`, `/api/risk-limits`, UI goals y recálculo settlement |
 | Recomendación y follow | FR-022..024, SL-28..30 | `recommendations`, `recommendation_follows` | Futuro: `/api/recommendations/*` |
 | Métricas | FR-025, SL-31 | datos liquidados; sin vista actual | Futuro: `/api/metrics/overview` |
 

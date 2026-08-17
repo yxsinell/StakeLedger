@@ -1,7 +1,7 @@
 ## 🧪 Acceptance Test Plan - Generated 2026-03-21
 
 **QA Engineer:** AI-Generated
-**Status:** Draft - Pending PO/Dev Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -197,7 +197,7 @@
 
 - **Given:** goal activa sin objetivo alcanzado
 - **When:** usuario intenta cerrar
-- **Then:** requiere confirmacion adicional o bloquea (TBD)
+- **Then:** completed se bloquea con `GOAL_TARGET_NOT_REACHED`; cancelled se permite con confirmación explícita
 
 ---
 

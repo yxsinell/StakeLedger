@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-21 (Goals and Risk Advisor)
 **Priority:** High
 **Story Points:** 2
-**Status:** To Do
+**Status:** Implemented locally - remote migration pending
 **Assignee:** null
 
 ---
@@ -64,6 +64,7 @@
 
 - Cierre permitido si objetivo alcanzado o confirmacion explicita
 - Meta cerrada no se recalcula
+- `completed` exige cash >= target; `cancelled` permite no alcanzada; ambos requieren `{confirmed:true}` y son finales.
 
 ---
 

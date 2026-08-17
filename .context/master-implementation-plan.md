@@ -44,7 +44,7 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 | Catálogo | RBAC | Catálogo local, entrada manual y alias. |
 | Bets | Implementado Fase 4G; validación manual pendiente | Tickets, financiación y reservas. |
 | Settlement | Implementado Fase 4H | Retornos por pocket, cashout cash-only y auditoría append-only. |
-| Goals | Settlement | Metas y riesgo sobre resultados fiables. |
+| Goals | Implementado local Fase 4I | Metas, riesgo y recálculo atómico; pendiente aplicar migration y verificar remoto. |
 | Recommendations | RBAC, catálogo, bets | Feed y prefill sin creación implícita de ticket. |
 | Metrics | Settlement | Métricas derivadas trazables. |
 
@@ -70,3 +70,11 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 - SL-16: auditoría append-only reforzada, lectura owner/admin y detalle de ticket conectado.
 - Migrations remotas: `20260817045500_implement_settlement_cashout_audit` y `20260817045542_index_settlement_cashout_references`.
 - Legacy se conserva y permanece no liquidable sin reservas modernas.
+
+## Fase 4I implementada localmente
+
+- SL-22/23: creación, update, misión diaria exacta, progreso, history y UI real.
+- SL-24: vínculo opcional `bets.goal_id` y recálculo dentro de settlement con deduplicación por bet.
+- SL-25: cap fijo 40%, max odds/max daily loss opt-in, API de configuración y alternativas sin ajuste automático.
+- SL-26: cierre explícito completed/cancelled con confirmación, history, audit y estado final.
+- Migration `20260817160357_implement_goals_and_risk.sql` aplicada remotamente; tipos Supabase regenerados y verificados.

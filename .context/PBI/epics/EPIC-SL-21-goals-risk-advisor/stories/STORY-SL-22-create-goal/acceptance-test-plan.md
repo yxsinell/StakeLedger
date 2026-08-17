@@ -1,7 +1,7 @@
 ## 🧪 Acceptance Test Plan - Generated 2026-03-21
 
 **QA Engineer:** AI-Generated
-**Status:** Draft - Pending PO/Dev Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -259,8 +259,7 @@
 - **Given:** valores con precision alta
 - **When:** base_amount = 100.123, target_amount = 150.789
 - **Then:**
-  - daily_profit y suggested_odds redondeados segun regla
-  - **Note:** requiere confirmacion PO/Dev
+- Se rechaza la operación si daily_profit excede dos decimales o suggested_odds excede cuatro; nunca se redondea.
 
 ---
 

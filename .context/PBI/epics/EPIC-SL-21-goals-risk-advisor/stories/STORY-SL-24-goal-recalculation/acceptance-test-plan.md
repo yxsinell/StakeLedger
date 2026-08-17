@@ -1,7 +1,7 @@
 ## 🧪 Acceptance Test Plan - Generated 2026-03-21
 
 **QA Engineer:** AI-Generated
-**Status:** Draft - Pending PO/Dev Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -47,7 +47,7 @@
 **Backend:**
 
 - POST /api/bets/{betId}/settle
-- POST /api/goals/{goalId}/recalculate
+- Recálculo interno dentro de POST /api/bets/{betId}/settle; no existe endpoint público manual.
 - Guardar historial de recalculos
 
 **Database:**

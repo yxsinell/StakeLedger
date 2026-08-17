@@ -89,7 +89,5 @@
 
 ## Decisiones Abiertas
 
-- Formula exacta y redondeo de `daily_profit` y `suggested_odds`.
-- Rango y default de `stakePreference`.
-- Timezone para deadline.
-- Strategy requerida/opcional y valores definitivos.
+- Resueltas Fase 4I: daily profit `(target-cash)/dias` exacto a dos; odds `1+daily/stake` exacta a cuatro; `current_date` PostgreSQL; stake monetario obligatorio; strategy `conservative|balanced|aggressive`.
+- Implementación en `src/lib/goals`, `/api/goals`, UI goals y migration remota `20260817160357` verificada.

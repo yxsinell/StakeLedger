@@ -12,7 +12,8 @@
 | Migrations | Fuente canónica `supabase/migrations/`; 15 versiones verificadas contra remoto. |
 | Movimientos | Implementados: depósitos/retiros cash-only con RPC e idempotencia. |
 | Transferencias | Implementadas: doble asiento cash atómico, idempotencia y BFF. |
-| Resto de dominios | Planificados. |
+| Metas y riesgo | Implementación local Fase 4I completa; migration pendiente de revisión/aplicación remota. |
+| Recomendaciones y métricas | Planificados. |
 
 ## Orden de entrega
 
@@ -23,7 +24,7 @@
 | 3 | Catálogo local | SL-18, SL-19, SL-20 | Búsqueda local, fallback manual y mantenimiento editor/admin. |
 | 4 | Tickets y financiación | SL-12, SL-13 | Reserva atómica, stake y funding. |
 | 5 | Liquidación, cashout y auditoría | SL-14, SL-15, SL-16 | Implementado: RPCs atómicas, retornos por pocket, split cash-only, BFF/UI y evidencia inmutable. |
-| 6 | Metas y riesgo | SL-22 a SL-26 | Fórmulas y límites definidos en Business Data Map. |
+| 6 | Metas y riesgo | SL-22 a SL-26 | Implementado: RPCs atómicas, API cookie BFF, UI, risk limits, recálculo settlement y tests. |
 | 7 | Recomendaciones | SL-28 a SL-30 | Publicación, feed y prefill seguro. |
 | 8 | Métricas | SL-31 | Consultas trazables sobre tickets liquidados. |
 

@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-21 (Goals and Risk Advisor)
 **Priority:** High
 **Story Points:** 3
-**Status:** To Do
+**Status:** Implemented locally - remote migration pending
 **Assignee:** null
 
 ---
@@ -64,6 +64,7 @@
 
 - Solo apuestas vinculadas disparan recalculo
 - Meta debe estar activa
+- Recálculo forma parte de la misma transacción de settlement y se deduplica por `(goal_id, bet_id)`; no hay endpoint manual.
 
 ---
 

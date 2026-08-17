@@ -226,6 +226,17 @@ erDiagram
 6. Cualquier error revierte todo; recurso ajeno o inexistente devuelve `404` genérico.
 7. `audit_logs` es append-only por trigger y grants; lectura usa RLS owner/admin y orden estable.
 
+## 4I. Data Flow (Goals and Risk)
+
+1. BFF autentica por cookie; lecturas usan cliente autenticado y RLS.
+2. Creación, update, cierre y configuración de riesgo usan RPCs `SECURITY INVOKER` ejecutables solo por `service_role`.
+3. RPCs bloquean cash y recursos de dominio en orden estable; una unique partial index garantiza una goal activa por bank.
+4. Cálculo monetario y cuotas exige precisión exacta; cualquier fracción adicional revierte toda la operación.
+5. `create_bet_with_funding` valida goal opcional, cap fijo 40%, max odds y pérdida diaria bajo locks.
+6. `settle_bet` recalcula exclusivamente la goal vinculada dentro de la misma transacción y deduplica por `(goal_id,bet_id)`.
+7. `authenticated` conserva SELECT necesario para BFF, pero no DML directo sobre goals/risk; history es solo lectura.
+8. Goals cerradas son finales, no se recalculan y no se eliminan mediante API.
+
 ---
 
 ## 5. Security Architecture
@@ -261,6 +272,13 @@ sequenceDiagram
 - `authenticated` no recibe DML directo sobre funding ni tablas financieras escritas por la RPC.
 - Bank ajeno e inexistente producen el mismo `404` para impedir enumeración.
 - Grants, RLS, atomicidad e idempotencia se verificaron contra remoto con rollback. Concurrencia multisesión y E2E manual permanecen pendientes.
+
+### Goals/Risk Fase 4I
+
+- Ownership cruzado queda denegado por RLS y validación RPC sin enumeración.
+- Core RPCs de bets permanecen internas y wrappers atómicos incorporan goal/risk sin exponer ejecución a `authenticated`.
+- `max_stake_percentage=40` se fija para filas nuevas/configuradas; filas legacy no se backfillean ni alteran.
+- Migration `20260817160357_implement_goals_and_risk.sql` aplicada y reconciliada con schema remoto.
 
 ### Data Protection
 

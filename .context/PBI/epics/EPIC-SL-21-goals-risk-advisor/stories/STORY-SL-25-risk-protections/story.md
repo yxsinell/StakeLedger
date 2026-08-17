@@ -4,7 +4,7 @@
 **Epic:** EPIC-SL-21 (Goals and Risk Advisor)
 **Priority:** High
 **Story Points:** 5
-**Status:** To Do
+**Status:** Implemented locally - remote migration pending
 **Assignee:** null
 
 ---
@@ -64,6 +64,7 @@
 
 - Limites de cuota configurables por usuario
 - Bloqueo obligatorio si se supera el limite
+- Stake máximo fijo 40% cash; max odds y max daily loss son opt-in y admiten null.
 
 ---
 

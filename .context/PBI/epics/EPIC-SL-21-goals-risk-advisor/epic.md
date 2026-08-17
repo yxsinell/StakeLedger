@@ -1,7 +1,7 @@
 # Goals and Risk Advisor
 
 **Jira Key:** SL-21
-**Status:** ASSIGNED
+**Status:** IMPLEMENTED LOCALLY - REMOTE MIGRATION PENDING
 **Priority:** HIGH
 **Phase:** Growth and Insights
 
@@ -161,7 +161,8 @@ See: `.context/PBI/epics/EPIC-SL-21-goals-risk-advisor/feature-implementation-pl
 
 ## Notes
 
-- Definir umbrales de cuotas suicidas en SRS
+- Decisiones Fase 4I cerradas: cookie BFF, RPC writes exclusivas de service role, una active por bank, formulas exactas sin redondeo, max odds/loss opt-in y cap fijo 40%.
+- Migration `20260817160357_implement_goals_and_risk.sql` aplicada y verificada en remoto.
 
 ---
 

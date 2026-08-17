@@ -86,7 +86,4 @@
 
 ## Decisiones Abiertas
 
-- TTL/cache e invalidacion diaria.
-- Mensaje para parametros faltantes.
-- Regla de deadline hoy y timezone.
-- Formula/precision compartida con SL-22.
+- Resueltas Fase 4I: snapshot único por `mission_date`, `current_date` PostgreSQL, mínimo un día, parámetros obligatorios para filas nuevas y fórmulas exactas compartidas con SL-22.

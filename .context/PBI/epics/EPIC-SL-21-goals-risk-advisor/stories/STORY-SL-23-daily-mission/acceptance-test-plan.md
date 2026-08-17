@@ -1,7 +1,7 @@
 ## 🧪 Acceptance Test Plan - Generated 2026-03-21
 
 **QA Engineer:** AI-Generated
-**Status:** Draft - Pending PO/Dev Review
+**Status:** Reconciled for Phase 4I - Execution Pending
 
 ---
 
@@ -402,6 +402,8 @@
 ---
 
 ## 📋 Test Execution Tracking
+
+Fase 4I usa `current_date`, días naturales con mínimo 1 y cálculo exacto sin cache externo; snapshots diarios se deduplican por goal/date.
 
 **Test Execution Date:** TBD
 **Environment:** Staging

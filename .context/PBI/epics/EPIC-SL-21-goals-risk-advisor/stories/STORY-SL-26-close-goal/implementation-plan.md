@@ -87,7 +87,4 @@
 
 ## Decisiones Abiertas
 
-- Cierre sin objetivo: bloquear o permitir con confirmacion adicional.
-- Respuesta exacta de `/close`.
-- Idempotencia de cierre doble.
-- Mensaje/CTA para meta ya cerrada.
+- Resueltas Fase 4I: completed solo con objetivo; cancelled bajo target; respuesta devuelve goal; cierre repetido conserva estado/fecha; UI usa confirmación de dos pasos.

@@ -88,7 +88,4 @@
 
 ## Decisiones Abiertas
 
-- Limite default de cuota suicida y max permitido.
-- Reglas exactas de reconfiguracion.
-- Donde persistir risk block history.
-- Endpoint dedicado para risk limits o embed en goals.
+- Resueltas Fase 4I: sin max odds default; `GET/PATCH /api/risk-limits`; alternativas aumentar stake, ampliar deadline o reducir target; bloqueos no mutan goal ni settlement.
