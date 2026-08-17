@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, BookOpen, LayoutDashboard, Settings2, TicketCheck, Users } from 'lucide-react';
+import { Banknote, BookOpen, Goal, LayoutDashboard, Settings2, TicketCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -50,6 +50,12 @@ const navItems = [
     icon: BookOpen,
     testId: 'catalog_nav',
   },
+  {
+    title: 'Metas',
+    url: '/dashboard/goals',
+    icon: Goal,
+    testId: 'goals_nav',
+  },
 ];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
@@ -94,7 +100,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu data-testid="primary_nav">
               {navItems.map((item) => {
-                const isActive = pathname === item.url;
+                const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

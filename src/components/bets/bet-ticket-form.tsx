@@ -1,9 +1,10 @@
 'use client';
 
 import type { BankData } from '@/lib/banks/schemas';
+import type { Goal } from '@/lib/goals/schemas';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,6 +20,7 @@ import { formatMoney } from '@/lib/banks/balance';
 import { BankListResponseSchema } from '@/lib/banks/schemas';
 import { BetResponseSchema } from '@/lib/bets/schemas';
 import { calculateStakeFromLevel, hasValidLevelStakePrecision } from '@/lib/bets/stake';
+import { GoalListResponseSchema } from '@/lib/goals/schemas';
 
 type ReferenceType = 'manual' | 'normalized';
 type StakeMode = 'amount' | 'level';
@@ -77,6 +79,8 @@ function getApiError(payload: unknown, fallback: string): string {
 export function BetTicketForm() {
   const [banks, setBanks] = useState<BankData[]>([]);
   const [bankId, setBankId] = useState('');
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalId, setGoalId] = useState('');
   const [legs, setLegs] = useState<LegFormValue[]>([{ ...EMPTY_LEG }]);
   const [ticketOdds, setTicketOdds] = useState('');
   const [stakeMode, setStakeMode] = useState<StakeMode>('amount');
@@ -94,17 +98,25 @@ export function BetTicketForm() {
 
     const loadBanks = async () => {
       try {
-        const response = await fetch('/api/banks', { credentials: 'same-origin' });
-        const payload: unknown = await response.json().catch(() => null);
+        const [response, goalsResponse] = await Promise.all([
+          fetch('/api/banks', { credentials: 'same-origin' }),
+          fetch('/api/goals', { credentials: 'same-origin' }),
+        ]);
+        const [payload, goalsPayload]: unknown[] = await Promise.all([
+          response.json().catch(() => null),
+          goalsResponse.json().catch(() => null),
+        ]);
         const parsed = BankListResponseSchema.safeParse(payload);
+        const parsedGoals = GoalListResponseSchema.safeParse(goalsPayload);
 
-        if (!response.ok || !parsed.success) {
+        if (!response.ok || !parsed.success || !goalsResponse.ok || !parsedGoals.success) {
           throw new Error(getApiError(payload, 'No se pudieron cargar los banks.'));
         }
 
         if (isCurrent) {
           setBanks(parsed.data.banks);
           setBankId(parsed.data.banks[0]?.id ?? '');
+          setGoals(parsedGoals.data.goals.filter(goal => goal.status === 'active'));
         }
       }
       catch (loadError) {
@@ -127,6 +139,7 @@ export function BetTicketForm() {
   }, []);
 
   const selectedBank = banks.find(bank => bank.id === bankId) ?? null;
+  const availableGoals = goals.filter(goal => goal.bank.id === bankId);
   const cashCents = selectedBank ? toCents(String(selectedBank.balances.cash)) ?? 0 : 0;
   const capCents = cashCents * 2 / 5;
   const explicitStakeCents = toCents(stakeAmount);
@@ -217,6 +230,7 @@ export function BetTicketForm() {
 
     const payload = {
       bankId: selectedBank.id,
+      ...(goalId ? { goalId } : {}),
       legs: legs.map(leg => leg.referenceType === 'manual'
         ? {
             referenceType: 'manual' as const,
@@ -293,6 +307,7 @@ export function BetTicketForm() {
       setStakeAmount('');
       setStakeLevel('');
       setFunding({ cash: '', bonus: '', freebet: '' });
+      setGoalId('');
       setSuccess(`Ticket ${parsed.data.bet.id} creado correctamente.`);
     }
     catch {
@@ -346,6 +361,7 @@ export function BetTicketForm() {
                   disabled={banks.length === 0}
                   onChange={(event) => {
                     setBankId(event.target.value);
+                    setGoalId('');
                     setSuccess(null);
                   }}
                 >
@@ -355,6 +371,27 @@ export function BetTicketForm() {
                       {bank.name}
                       {' · '}
                       {bank.currency}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="bet-goal">Meta (opcional)</Label>
+                <select
+                  id="bet-goal"
+                  className="h-11 rounded-xl border border-input bg-background px-4 text-sm"
+                  value={goalId}
+                  data-testid="goal_id_select"
+                  onChange={event => setGoalId(event.target.value)}
+                >
+                  <option value="">Sin meta vinculada</option>
+                  {availableGoals.map(goal => (
+                    <option key={goal.id} value={goal.id}>
+                      {goal.targetAmount.toFixed(2)}
+                      {' '}
+                      {goal.bank.currency}
+                      {' · '}
+                      {goal.deadline}
                     </option>
                   ))}
                 </select>
