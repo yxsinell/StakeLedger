@@ -40,7 +40,7 @@ const navItems = [
   },
   {
     title: 'Tickets',
-    url: '/dashboard/bets/new',
+    url: '/dashboard/bets',
     icon: TicketCheck,
     testId: 'bets_nav',
   },
