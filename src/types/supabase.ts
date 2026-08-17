@@ -1177,6 +1177,35 @@ export type Database = {
           role_version: number
         }[]
       }
+      close_goal: {
+        Args: {
+          p_actor_user_id: string
+          p_confirmed: boolean
+          p_goal_id: string
+          p_reason: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      compute_goal_mission: {
+        Args: {
+          p_current_cash: number
+          p_deadline: string
+          p_stake_preference: number
+          p_target_amount: number
+        }
+        Returns: Json
+      }
+      configure_risk_limits: {
+        Args: {
+          p_actor_user_id: string
+          p_max_daily_loss: number
+          p_max_odds: number
+          p_set_max_daily_loss: boolean
+          p_set_max_odds: boolean
+        }
+        Returns: Json
+      }
       create_bank_with_pockets: {
         Args: {
           p_currency: string
@@ -1188,6 +1217,21 @@ export type Database = {
         Returns: Json
       }
       create_bet_with_funding: {
+        Args: {
+          p_actor_user_id: string
+          p_bank_id: string
+          p_funding: Json
+          p_goal_id: string
+          p_idempotency_key: string
+          p_legs: Json
+          p_odds: number
+          p_stake_amount: number
+          p_stake_level: number
+          p_stake_type: string
+        }
+        Returns: Json
+      }
+      create_bet_with_funding_core: {
         Args: {
           p_actor_user_id: string
           p_bank_id: string
@@ -1207,6 +1251,18 @@ export type Database = {
           p_alias: string
           p_entity_type: string
           p_item_id: string
+        }
+        Returns: Json
+      }
+      create_goal: {
+        Args: {
+          p_actor_user_id: string
+          p_bank_id: string
+          p_base_amount: number
+          p_deadline: string
+          p_stake_preference: number
+          p_strategy: string
+          p_target_amount: number
         }
         Returns: Json
       }
@@ -1266,6 +1322,26 @@ export type Database = {
           p_bet_id: string
           p_idempotency_key: string
           p_result: string
+        }
+        Returns: Json
+      }
+      settle_bet_core: {
+        Args: {
+          p_actor_user_id: string
+          p_bet_id: string
+          p_idempotency_key: string
+          p_result: string
+        }
+        Returns: Json
+      }
+      update_goal: {
+        Args: {
+          p_actor_user_id: string
+          p_deadline: string
+          p_goal_id: string
+          p_stake_preference: number
+          p_strategy: string
+          p_target_amount: number
         }
         Returns: Json
       }

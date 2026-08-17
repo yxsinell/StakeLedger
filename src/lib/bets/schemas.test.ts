@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   BetCashoutRequestSchema,
   BetCreateRequestSchema,
+  BetSettlementResultResponseSchema,
   BetSettleRequestSchema,
   IdempotencyKeySchema,
 } from './schemas';
@@ -52,6 +53,14 @@ describe('BetCreateRequestSchema', () => {
       legs: [{ ...normalized.legs[0], eventName: 'Forbidden' }],
     }).success).toBe(false);
     expect(BetCreateRequestSchema.safeParse({ ...validRequest, unexpected: true }).success).toBe(false);
+  });
+
+  test('accepts an optional goalId and rejects invalid goal references', () => {
+    expect(BetCreateRequestSchema.safeParse({
+      ...validRequest,
+      goalId: '550e8400-e29b-41d4-a716-446655440003',
+    }).success).toBe(true);
+    expect(BetCreateRequestSchema.safeParse({ ...validRequest, goalId: 'not-a-goal' }).success).toBe(false);
   });
 
   test('enforces leg count, text length, and odds precision', () => {
@@ -122,5 +131,27 @@ describe('Phase 4H mutation schemas', () => {
     expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 0, remainingStake: 4 }).success).toBe(false);
     expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 8.001, remainingStake: 4 }).success).toBe(false);
     expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 8, remainingStake: 4.001 }).success).toBe(false);
+  });
+
+  test('accepts settlement goal recalculation metadata', () => {
+    expect(BetSettlementResultResponseSchema.safeParse({
+      bet: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        status: 'settled',
+        result: 'won',
+        returnAmount: 20,
+        profitAmount: 10,
+      },
+      balances: { cash: 110, bonus: 0, freebet: 0 },
+      transactions: [{
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        pocketType: 'cash',
+        type: 'bet_return',
+        amount: 20,
+      }],
+      replayed: false,
+      goalRecalculated: true,
+      goalId: '550e8400-e29b-41d4-a716-446655440002',
+    }).success).toBe(true);
   });
 });

@@ -20,6 +20,22 @@ const mapBetError = (error: unknown) => {
       return codedErrorResponse('Catalog reference not found', 'CATALOG_REFERENCE_NOT_FOUND', 404);
     }
 
+    if (error.message === 'GOAL_NOT_FOUND') {
+      return codedErrorResponse('Goal not found', 'GOAL_NOT_FOUND', 404, 'goalId');
+    }
+
+    if (error.message === 'GOAL_NOT_ACTIVE') {
+      return codedErrorResponse('Goal is not active', 'GOAL_NOT_ACTIVE', 409, 'goalId');
+    }
+
+    if (error.message === 'RISK_MAX_ODDS_EXCEEDED') {
+      return codedErrorResponse('Ticket odds exceed your configured maximum', 'RISK_MAX_ODDS_EXCEEDED', 409, 'odds');
+    }
+
+    if (error.message === 'RISK_DAILY_LOSS_EXCEEDED') {
+      return codedErrorResponse('Ticket exceeds your configured daily loss limit', 'RISK_DAILY_LOSS_EXCEEDED', 409, 'stake');
+    }
+
     if (error.message === 'FUNDING_SUM_MISMATCH') {
       return codedErrorResponse('Funding sum must equal stake amount', 'FUNDING_SUM_MISMATCH', 400, 'funding');
     }

@@ -95,6 +95,7 @@ export const BetFundingSchema = z
 export const BetCreateRequestSchema = z
   .object({
     bankId: z.string().uuid('Bank not found'),
+    goalId: z.string().uuid('Goal not found').optional(),
     legs: z.array(BetLegSchema).min(1).max(20),
     odds: OddsSchema,
     stake: BetStakeSchema,
@@ -129,6 +130,7 @@ const BetFundingReservationSchema = z.object({
 
 const BetSchema = z.object({
   id: z.string().uuid(),
+  goalId: z.string().uuid().nullable(),
   status: z.literal('open'),
   fundingStatus: z.literal('reserved'),
   stakeAmount: PositiveMonetaryAmountSchema,
@@ -186,6 +188,7 @@ export const AuditEventSchema = z.object({
 export const BetViewSchema = z.object({
   id: z.string().uuid(),
   bankId: z.string().uuid(),
+  goalId: z.string().uuid().nullable(),
   status: z.string(),
   result: z.string().nullable(),
   fundingStatus: z.string(),
@@ -231,6 +234,8 @@ export const BetSettlementResultResponseSchema = z.object({
   balances: BetBalancesSchema,
   transactions: z.array(FinancialTransactionSchema),
   replayed: z.boolean(),
+  goalRecalculated: z.boolean().optional(),
+  goalId: z.string().uuid().optional(),
 }).strict().openapi('BetSettlementResult');
 
 export const BetCashoutResultResponseSchema = z.object({

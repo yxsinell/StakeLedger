@@ -21,6 +21,12 @@ export const mapBetsError = (error: unknown) => {
     if (error.message === 'RETURN_PRECISION_INVALID') {
       return codedErrorResponse('Calculated return has more than two decimal places', 'RETURN_PRECISION_INVALID', 409);
     }
+    if (error.message === 'GOAL_DAILY_PROFIT_PRECISION') {
+      return codedErrorResponse('Goal daily profit is not exact to two decimal places; settlement was reverted', 'GOAL_DAILY_PROFIT_PRECISION', 409);
+    }
+    if (error.message === 'GOAL_SUGGESTED_ODDS_PRECISION') {
+      return codedErrorResponse('Goal suggested odds is not exact to four decimal places; settlement was reverted', 'GOAL_SUGGESTED_ODDS_PRECISION', 409);
+    }
     if (error.message === 'IDEMPOTENCY_KEY_REUSED') {
       return codedErrorResponse('Idempotency key is already associated with a different request', 'IDEMPOTENCY_KEY_REUSED', 409, 'Idempotency-Key');
     }

@@ -12,8 +12,6 @@ import {
 } from './schemas';
 import { fundingEqualsStake } from './stake';
 
-type CreateBetRpcArgs = Database['public']['Functions']['create_bet_with_funding']['Args'];
-
 export class BetsServiceError extends Error {
   constructor(
     message: string,
@@ -33,6 +31,7 @@ export const createBet = async (
   const args = {
     p_actor_user_id: actorUserId,
     p_bank_id: input.bankId,
+    p_goal_id: input.goalId ?? null,
     p_odds: input.odds,
     p_stake_type: input.stake.type,
     p_stake_amount: input.stake.type === 'amount' ? input.stake.amount : null,
@@ -43,10 +42,7 @@ export const createBet = async (
   };
 
   // Generated RPC types cannot express nullable PostgreSQL function arguments.
-  const { data, error } = await supabase.rpc(
-    'create_bet_with_funding',
-    args as CreateBetRpcArgs,
-  );
+  const { data, error } = await (supabase as unknown as RpcClient).rpc('create_bet_with_funding', args);
 
   if (error) {
     throw new BetsServiceError(error.message, error.code);
@@ -75,6 +71,7 @@ const RawFundingSchema = z.object({
 const RawBetSchema = z.object({
   id: z.string().uuid(),
   bank_id: z.string().uuid(),
+  goal_id: z.string().uuid().nullable(),
   status: z.string(),
   result: z.string().nullable(),
   funding_status: z.string(),
@@ -90,7 +87,7 @@ const RawBetSchema = z.object({
 });
 
 const betSelect = `
-  id, bank_id, status, result, funding_status, stake_amount, stake_level, odds,
+  id, bank_id, goal_id, status, result, funding_status, stake_amount, stake_level, odds,
   return_amount, profit_amount, settled_at, created_at,
   bet_legs(id, reference_type, event_id, market_id, event_name, market, selection, odds),
   bet_funding(pocket_type, amount, reserved_transaction_id)
@@ -112,6 +109,7 @@ const mapBet = (raw: z.infer<typeof RawBetSchema>): BetView => {
   return BetViewSchema.parse({
     id: raw.id,
     bankId: raw.bank_id,
+    goalId: raw.goal_id,
     status: raw.status,
     result: raw.result,
     fundingStatus: raw.funding_status,
