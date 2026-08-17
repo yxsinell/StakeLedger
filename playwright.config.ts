@@ -14,8 +14,8 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:3001',
     trace: 'retain-on-failure',
   },
-  globalSetup: './tests/e2e/phase4h.setup.ts',
-  globalTeardown: './tests/e2e/phase4h.teardown.ts',
+  globalSetup: './tests/e2e/phase4i.setup.ts',
+  globalTeardown: './tests/e2e/phase4i.teardown.ts',
   webServer: {
     command: 'bun run dev -- -p 3001',
     url: 'http://127.0.0.1:3001/login',
