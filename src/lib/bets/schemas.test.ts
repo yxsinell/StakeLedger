@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
-import { BetCreateRequestSchema, IdempotencyKeySchema } from './schemas';
+import {
+  BetCashoutRequestSchema,
+  BetCreateRequestSchema,
+  BetSettleRequestSchema,
+  IdempotencyKeySchema,
+} from './schemas';
 
 const validRequest = {
   bankId: '550e8400-e29b-41d4-a716-446655440000',
@@ -100,5 +105,22 @@ describe('BetCreateRequestSchema', () => {
   test('accepts only UUID idempotency keys', () => {
     expect(IdempotencyKeySchema.safeParse('550e8400-e29b-41d4-a716-446655440000').success).toBe(true);
     expect(IdempotencyKeySchema.safeParse('retry-1').success).toBe(false);
+  });
+});
+
+describe('Phase 4H mutation schemas', () => {
+  test('accepts only canonical settlement results', () => {
+    for (const result of ['won', 'lost', 'void', 'half_won', 'half_lost']) {
+      expect(BetSettleRequestSchema.safeParse({ result }).success).toBe(true);
+    }
+    expect(BetSettleRequestSchema.safeParse({ result: 'win' }).success).toBe(false);
+    expect(BetSettleRequestSchema.safeParse({ result: 'won', settlementAmount: 20 }).success).toBe(false);
+  });
+
+  test('validates cashout money without rounding', () => {
+    expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 8, remainingStake: 4 }).success).toBe(true);
+    expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 0, remainingStake: 4 }).success).toBe(false);
+    expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 8.001, remainingStake: 4 }).success).toBe(false);
+    expect(BetCashoutRequestSchema.safeParse({ cashoutAmount: 8, remainingStake: 4.001 }).success).toBe(false);
   });
 });

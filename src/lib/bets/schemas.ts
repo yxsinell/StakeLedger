@@ -31,6 +31,9 @@ const OddsSchema = z
 const RequiredTextSchema = z.string().trim().min(1, 'Text is required').max(100);
 
 export const IdempotencyKeySchema = z.string().uuid('Idempotency-Key must be a UUID');
+export const BetIdSchema = z.string().uuid('Bet not found');
+export const BetSettlementResultSchema = z.enum(['won', 'lost', 'void', 'half_won', 'half_lost']);
+export const BetLifecycleStatusSchema = z.enum(['draft', 'open', 'settled', 'cashout']);
 
 export const BetStakeSchema = z.discriminatedUnion('type', [
   z.object({
@@ -109,6 +112,15 @@ export const BetCreateRequestSchema = z
   })
   .openapi('BetCreateRequest');
 
+export const BetSettleRequestSchema = z.object({
+  result: BetSettlementResultSchema,
+}).strict().openapi('BetSettleRequest');
+
+export const BetCashoutRequestSchema = z.object({
+  cashoutAmount: PositiveMonetaryAmountSchema,
+  remainingStake: PositiveMonetaryAmountSchema,
+}).strict().openapi('BetCashoutRequest');
+
 const BetFundingReservationSchema = z.object({
   pocketType: z.enum(['cash', 'bonus', 'freebet']),
   amount: PositiveMonetaryAmountSchema,
@@ -145,4 +157,119 @@ export const BetResponseSchema = z.object({
   replayed: z.boolean(),
 }).strict().openapi('BetResponse');
 
+export const BetLegViewSchema = z.object({
+  id: z.string().uuid(),
+  referenceType: z.enum(['normalized', 'manual', 'legacy']),
+  eventId: z.string().uuid().nullable(),
+  marketId: z.string().uuid().nullable(),
+  eventName: z.string().nullable(),
+  marketName: z.string(),
+  selection: z.string(),
+  odds: OddsSchema,
+}).strict().openapi('BetLegView');
+
+export const BetFundingViewSchema = z.object({
+  pocketType: z.enum(['cash', 'bonus', 'freebet']),
+  amount: PositiveMonetaryAmountSchema,
+  transactionId: z.string().uuid(),
+}).strict().openapi('BetFundingView');
+
+export const AuditEventSchema = z.object({
+  id: z.string().uuid(),
+  entityType: z.enum(['bank', 'transaction', 'bet', 'goal', 'recommendation', 'catalog', 'user']),
+  entityId: z.string().uuid(),
+  action: z.string(),
+  actorId: z.string().uuid(),
+  createdAt: z.string(),
+}).strict().openapi('AuditEvent');
+
+export const BetViewSchema = z.object({
+  id: z.string().uuid(),
+  bankId: z.string().uuid(),
+  status: z.string(),
+  result: z.string().nullable(),
+  fundingStatus: z.string(),
+  stakeAmount: PositiveMonetaryAmountSchema,
+  stakeLevel: z.number().nullable(),
+  odds: OddsSchema,
+  returnAmount: MonetaryAmountSchema.nullable(),
+  profitAmount: MonetaryAmountSchema.nullable(),
+  settledAt: z.string().nullable(),
+  createdAt: z.string(),
+  settlementEligible: z.boolean(),
+  cashoutEligible: z.boolean(),
+  legs: z.array(BetLegViewSchema),
+  funding: z.array(BetFundingViewSchema),
+}).strict().openapi('BetView');
+
+export const BetListResponseSchema = z.object({
+  success: z.literal(true),
+  bets: z.array(BetViewSchema),
+}).strict().openapi('BetListResponse');
+
+export const BetDetailResponseSchema = z.object({
+  success: z.literal(true),
+  bet: BetViewSchema,
+  audit: z.array(AuditEventSchema),
+}).strict().openapi('BetDetailResponse');
+
+const FinancialTransactionSchema = z.object({
+  id: z.string().uuid(),
+  pocketType: z.enum(['cash', 'bonus', 'freebet']),
+  type: z.string(),
+  amount: PositiveMonetaryAmountSchema,
+}).strict();
+
+export const BetSettlementResultResponseSchema = z.object({
+  bet: z.object({
+    id: z.string().uuid(),
+    status: z.literal('settled'),
+    result: BetSettlementResultSchema,
+    returnAmount: MonetaryAmountSchema.nonnegative(),
+    profitAmount: z.number().finite(),
+  }).strict(),
+  balances: BetBalancesSchema,
+  transactions: z.array(FinancialTransactionSchema),
+  replayed: z.boolean(),
+}).strict().openapi('BetSettlementResult');
+
+export const BetCashoutResultResponseSchema = z.object({
+  sourceBet: z.object({
+    id: z.string().uuid(),
+    status: z.literal('cashout'),
+    result: z.literal('cashout'),
+    returnAmount: PositiveMonetaryAmountSchema,
+    profitAmount: z.number().finite(),
+  }).strict(),
+  derivedBet: z.object({
+    id: z.string().uuid(),
+    status: z.literal('open'),
+    fundingStatus: z.literal('reserved'),
+    stakeAmount: PositiveMonetaryAmountSchema,
+    odds: OddsSchema,
+  }).strict(),
+  cashout: z.object({
+    id: z.string().uuid(),
+    sourceBetId: z.string().uuid(),
+    derivedBetId: z.string().uuid(),
+    cashoutAmount: PositiveMonetaryAmountSchema,
+    remainingStake: PositiveMonetaryAmountSchema,
+    splitGroupId: z.string().uuid(),
+  }).strict(),
+  balances: z.object({ cash: MonetaryAmountSchema.nonnegative() }).strict(),
+  transactions: z.array(FinancialTransactionSchema),
+  replayed: z.boolean(),
+}).strict().openapi('BetCashoutResult');
+
+export const BetSettlementResponseSchema = BetSettlementResultResponseSchema.extend({
+  success: z.literal(true),
+}).openapi('BetSettlementResponse');
+
+export const BetCashoutResponseSchema = BetCashoutResultResponseSchema.extend({
+  success: z.literal(true),
+}).openapi('BetCashoutResponse');
+
 export type BetCreateInput = z.infer<typeof BetCreateRequestSchema>;
+export type BetSettleInput = z.infer<typeof BetSettleRequestSchema>;
+export type BetCashoutInput = z.infer<typeof BetCashoutRequestSchema>;
+export type BetView = z.infer<typeof BetViewSchema>;

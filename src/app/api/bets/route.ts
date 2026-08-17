@@ -7,7 +7,7 @@ import {
   BetCreateRequestSchema,
   IdempotencyKeySchema,
 } from '@/lib/bets/schemas';
-import { BetsServiceError, createBet } from '@/lib/bets/service';
+import { BetsServiceError, createBet, listBets } from '@/lib/bets/service';
 import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 const mapBetError = (error: unknown) => {
@@ -56,6 +56,26 @@ const mapBetError = (error: unknown) => {
 
   return serverError();
 };
+
+export async function GET(request: Request) {
+  const supabase = await createServerClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return codedErrorResponse('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+  }
+
+  const bankId = new URL(request.url).searchParams.get('bankId') ?? undefined;
+  if (bankId && !IdempotencyKeySchema.safeParse(bankId).success) {
+    return codedErrorResponse('Bank not found', 'BANK_NOT_FOUND', 404);
+  }
+
+  try {
+    return successResponse({ success: true, bets: await listBets(supabase, bankId) });
+  }
+  catch (error) {
+    return mapBetError(error);
+  }
+}
 
 export async function POST(request: Request) {
   const supabase = await createServerClient();
