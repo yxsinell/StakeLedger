@@ -369,6 +369,48 @@ export type Database = {
           },
         ]
       }
+      cashout_idempotencies: {
+        Row: {
+          bet_id: string
+          created_at: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Insert: {
+          bet_id: string
+          created_at?: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Update: {
+          bet_id?: string
+          created_at?: string
+          idempotency_key?: string
+          request_payload?: Json
+          response_payload?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_idempotencies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_aliases: {
         Row: {
           alias: string
@@ -933,6 +975,48 @@ export type Database = {
           },
         ]
       }
+      settlement_idempotencies: {
+        Row: {
+          bet_id: string
+          created_at: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Insert: {
+          bet_id: string
+          created_at?: string
+          idempotency_key: string
+          request_payload: Json
+          response_payload: Json
+          user_id: string
+        }
+        Update: {
+          bet_id?: string
+          created_at?: string
+          idempotency_key?: string
+          request_payload?: Json
+          response_payload?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_idempotencies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_idempotencies: {
         Row: {
           created_at: string
@@ -979,6 +1063,8 @@ export type Database = {
         Row: {
           amount: number
           bank_id: string
+          bet_id: string | null
+          cashout_id: string | null
           created_at: string
           id: string
           idempotency_key: string | null
@@ -991,6 +1077,8 @@ export type Database = {
         Insert: {
           amount: number
           bank_id: string
+          bet_id?: string | null
+          cashout_id?: string | null
           created_at?: string
           id?: string
           idempotency_key?: string | null
@@ -1003,6 +1091,8 @@ export type Database = {
         Update: {
           amount?: number
           bank_id?: string
+          bet_id?: string | null
+          cashout_id?: string | null
           created_at?: string
           id?: string
           idempotency_key?: string | null
@@ -1018,6 +1108,20 @@ export type Database = {
             columns: ["bank_id"]
             isOneToOne: false
             referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "bets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cashout_id_fkey"
+            columns: ["cashout_id"]
+            isOneToOne: false
+            referencedRelation: "bet_cashouts"
             referencedColumns: ["id"]
           },
           {
@@ -1117,6 +1221,16 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_catalog_editor: { Args: never; Returns: boolean }
+      partial_cashout_bet: {
+        Args: {
+          p_actor_user_id: string
+          p_bet_id: string
+          p_cashout_amount: number
+          p_idempotency_key: string
+          p_remaining_stake: number
+        }
+        Returns: Json
+      }
       record_cash_transaction: {
         Args: {
           p_amount: number
@@ -1143,6 +1257,15 @@ export type Database = {
           p_limit?: number
           p_offset?: number
           p_query: string
+        }
+        Returns: Json
+      }
+      settle_bet: {
+        Args: {
+          p_actor_user_id: string
+          p_bet_id: string
+          p_idempotency_key: string
+          p_result: string
         }
         Returns: Json
       }
