@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createServerClient as createSsrServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
@@ -5,6 +6,41 @@ import { cleanupPhase4iState } from './phase4i.teardown';
 
 const statePath = '.playwright/phase4i-state.json';
 const authStatePath = '.playwright/phase4i-auth.json';
+const secondaryAuthStatePath = '.playwright/phase6-secondary-auth.json';
+const logoutAuthStatePath = '.playwright/phase6-logout-auth.json';
+
+async function createAuthCookies(url: string, anonKey: string, email: string, supabase: SupabaseClient) {
+  const { data: link, error: linkError } = await supabase.auth.admin.generateLink({ type: 'magiclink', email });
+  if (linkError || !link.properties.hashed_token) { throw linkError ?? new Error('Test session link was not created'); }
+  const authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data: verified, error: verifyError } = await authClient.auth.verifyOtp({
+    token_hash: link.properties.hashed_token,
+    type: 'email',
+  });
+  if (verifyError || !verified.session) { throw verifyError ?? new Error('Test session was not created'); }
+  const cookieJar = new Map<string, string>();
+  const sessionClient = createSsrServerClient(url, anonKey, {
+    cookies: {
+      getAll: () => [...cookieJar].map(([name, value]) => ({ name, value })),
+      setAll: cookies => cookies.forEach(cookie => cookieJar.set(cookie.name, cookie.value)),
+    },
+  });
+  const { error: sessionError } = await sessionClient.auth.setSession({
+    access_token: verified.session.access_token,
+    refresh_token: verified.session.refresh_token,
+  });
+  if (sessionError) { throw sessionError; }
+  return [...cookieJar].map(([name, value]) => ({
+    name,
+    value,
+    domain: '127.0.0.1',
+    path: '/',
+    expires: verified.session!.expires_at,
+    httpOnly: false,
+    secure: false,
+    sameSite: 'Lax' as const,
+  }));
+}
 
 export default async function setup() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -17,6 +53,8 @@ export default async function setup() {
   const secondaryPassword = `Phase4I-${crypto.randomUUID()}!`;
   const email = `phase4i-${suffix}@example.com`;
   const secondaryEmail = `phase4i-owner-${suffix}@example.com`;
+  const logoutEmail = `phase6-logout-${suffix}@example.com`;
+  const logoutPassword = `Phase6-${crypto.randomUUID()}!`;
   const createdUsers: string[] = [];
   const competitionId = crypto.randomUUID();
   const homeTeamId = crypto.randomUUID();
@@ -33,40 +71,16 @@ export default async function setup() {
     const { data: secondary, error: secondaryError } = await supabase.auth.admin.createUser({ email: secondaryEmail, password: secondaryPassword, email_confirm: true });
     if (secondaryError || !secondary.user) { throw secondaryError ?? new Error('Secondary test user was not created'); }
     createdUsers.push(secondary.user.id);
+    const { data: logout, error: logoutError } = await supabase.auth.admin.createUser({ email: logoutEmail, password: logoutPassword, email_confirm: true });
+    if (logoutError || !logout.user) { throw logoutError ?? new Error('Logout test user was not created'); }
+    createdUsers.push(logout.user.id);
 
     const { error: roleError } = await supabase.from('users').update({ role: 'editor' }).eq('id', primary.user.id);
     if (roleError) { throw roleError; }
 
-    const { data: link, error: linkError } = await supabase.auth.admin.generateLink({ type: 'magiclink', email });
-    if (linkError || !link.properties.hashed_token) { throw linkError ?? new Error('Test session link was not created'); }
-    const authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const { data: verified, error: verifyError } = await authClient.auth.verifyOtp({
-      token_hash: link.properties.hashed_token,
-      type: 'email',
-    });
-    if (verifyError || !verified.session) { throw verifyError ?? new Error('Test session was not created'); }
-    const cookieJar = new Map<string, string>();
-    const sessionClient = createSsrServerClient(url, anonKey, {
-      cookies: {
-        getAll: () => [...cookieJar].map(([name, value]) => ({ name, value })),
-        setAll: cookies => cookies.forEach(cookie => cookieJar.set(cookie.name, cookie.value)),
-      },
-    });
-    const { error: sessionError } = await sessionClient.auth.setSession({
-      access_token: verified.session.access_token,
-      refresh_token: verified.session.refresh_token,
-    });
-    if (sessionError) { throw sessionError; }
-    const authCookies = [...cookieJar].map(([name, value]) => ({
-      name,
-      value,
-      domain: '127.0.0.1',
-      path: '/',
-      expires: verified.session!.expires_at,
-      httpOnly: false,
-      secure: false,
-      sameSite: 'Lax' as const,
-    }));
+    const authCookies = await createAuthCookies(url, anonKey, email, supabase);
+    const secondaryAuthCookies = await createAuthCookies(url, anonKey, secondaryEmail, supabase);
+    const logoutAuthCookies = await createAuthCookies(url, anonKey, logoutEmail, supabase);
 
     const settlementBankId = crypto.randomUUID();
     const goalBankId = crypto.randomUUID();
@@ -75,6 +89,9 @@ export default async function setup() {
     const metricsBankId = crypto.randomUUID();
     const ledgerSourceBankId = crypto.randomUUID();
     const ledgerDestinationBankId = crypto.randomUUID();
+    const fundingBankId = crypto.randomUUID();
+    const concurrencyBetBankId = crypto.randomUUID();
+    const metricsBoundaryBankId = crypto.randomUUID();
     const goalBankName = `Goal bank ${suffix}`;
     const metricsBankName = `Metrics bank ${suffix}`;
     const { error: bankError } = await supabase.from('banks').insert([
@@ -85,13 +102,16 @@ export default async function setup() {
       { id: metricsBankId, user_id: primary.user.id, name: metricsBankName, currency: 'EUR' },
       { id: ledgerSourceBankId, user_id: primary.user.id, name: `Ledger source ${suffix}`, currency: 'EUR' },
       { id: ledgerDestinationBankId, user_id: primary.user.id, name: `Ledger destination ${suffix}`, currency: 'EUR' },
+      { id: fundingBankId, user_id: primary.user.id, name: `Funding bank ${suffix}`, currency: 'EUR' },
+      { id: concurrencyBetBankId, user_id: primary.user.id, name: `Bet concurrency ${suffix}`, currency: 'EUR' },
+      { id: metricsBoundaryBankId, user_id: primary.user.id, name: `Metrics boundary ${suffix}`, currency: 'EUR' },
     ]);
     if (bankError) { throw bankError; }
     const { error: pocketsError } = await supabase.from('bank_pockets').insert([
-      ...[settlementBankId, goalBankId, concurrencyBankId, secondaryBankId, metricsBankId, ledgerSourceBankId, ledgerDestinationBankId].flatMap(bankId => [
-        { bank_id: bankId, pocket_type: 'cash', balance: bankId === settlementBankId ? 80 : bankId === ledgerDestinationBankId ? 0 : 100 },
-        { bank_id: bankId, pocket_type: 'bonus', balance: 0 },
-        { bank_id: bankId, pocket_type: 'freebet', balance: 0 },
+      ...[settlementBankId, goalBankId, concurrencyBankId, secondaryBankId, metricsBankId, ledgerSourceBankId, ledgerDestinationBankId, fundingBankId, concurrencyBetBankId, metricsBoundaryBankId].flatMap(bankId => [
+        { bank_id: bankId, pocket_type: 'cash', balance: bankId === settlementBankId ? 80 : bankId === ledgerDestinationBankId ? 0 : bankId === concurrencyBetBankId ? 50 : 100 },
+        { bank_id: bankId, pocket_type: 'bonus', balance: bankId === fundingBankId ? 100 : 0 },
+        { bank_id: bankId, pocket_type: 'freebet', balance: bankId === fundingBankId ? 100 : 0 },
       ]),
     ]);
     if (pocketsError) { throw pocketsError; }
@@ -180,6 +200,15 @@ export default async function setup() {
     });
     if (marketError) { throw marketError; }
 
+    const { data: publishedRecommendations, error: recommendationError } = await supabase
+      .from('recommendations')
+      .select('id')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(3);
+    if (recommendationError) { throw recommendationError; }
+
     const deadline = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     const { data: secondaryGoal, error: goalError } = await supabase.rpc('create_goal', {
       p_actor_user_id: secondary.user.id,
@@ -194,6 +223,8 @@ export default async function setup() {
 
     await mkdir('.playwright', { recursive: true });
     await writeFile(authStatePath, JSON.stringify({ cookies: authCookies, origins: [] }), 'utf8');
+    await writeFile(secondaryAuthStatePath, JSON.stringify({ cookies: secondaryAuthCookies, origins: [] }), 'utf8');
+    await writeFile(logoutAuthStatePath, JSON.stringify({ cookies: logoutAuthCookies, origins: [] }), 'utf8');
     await writeFile(statePath, JSON.stringify({
       email,
       password,
@@ -208,6 +239,11 @@ export default async function setup() {
       metricsBankName,
       ledgerSourceBankId,
       ledgerDestinationBankId,
+      fundingBankId,
+      concurrencyBetBankId,
+      metricsBoundaryBankId,
+      secondaryBankId,
+      publishedRecommendationIds: publishedRecommendations.map(recommendation => recommendation.id),
       metricsDate: fixtureNow.toISOString().slice(0, 10),
       goalBankId,
       goalBankName,

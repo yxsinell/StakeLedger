@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const statePath = '.playwright/phase4i-state.json';
 const authStatePath = '.playwright/phase4i-auth.json';
+const secondaryAuthStatePath = '.playwright/phase6-secondary-auth.json';
+const logoutAuthStatePath = '.playwright/phase6-logout-auth.json';
 
 export interface Phase4iCleanupState {
   userIds: string[]
@@ -54,6 +56,16 @@ export async function cleanupPhase4iState(supabase: SupabaseClient, state: Phase
   if (competitionError) { throw competitionError; }
 
   for (const userId of state.userIds) {
+    const residueChecks = await Promise.all([
+      supabase.from('banks').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('goals').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('risk_limits').select('user_id', { count: 'exact', head: true }).eq('user_id', userId),
+    ]);
+    const residueError = residueChecks.find(result => result.error)?.error;
+    if (residueError) { throw residueError; }
+    if (residueChecks.some(result => result.count !== 0)) {
+      throw new Error(`Phase 6 cleanup left mutable residue for user ${userId}`);
+    }
     // Soft-delete auth access while retaining immutable audit rows and actor profile evidence.
     const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId, true);
     if (deleteUserError) { throw deleteUserError; }
@@ -75,4 +87,6 @@ export default async function teardown() {
   await cleanupPhase4iState(supabase, state);
   await rm(statePath, { force: true });
   await rm(authStatePath, { force: true });
+  await rm(secondaryAuthStatePath, { force: true });
+  await rm(logoutAuthStatePath, { force: true });
 }

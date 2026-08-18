@@ -72,11 +72,20 @@ test.describe.serial('Phase 5: connected MVP journeys', () => {
     await expect(page.getByTestId('admin_users_restricted_state')).toBeVisible();
   });
 
-  test('logout ends current session and returns user to login', async ({ page }) => {
-    await page.goto('/dashboard');
-    await expect(page.getByTestId('logout_button')).toBeVisible();
-    await page.getByTestId('logout_button').click();
-    await expect(page).toHaveURL('/login');
-    await expect(page.getByTestId('loginForm')).toBeVisible();
+  test('logout ends current session and returns user to login', async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: 'http://127.0.0.1:3001',
+      storageState: '.playwright/phase6-logout-auth.json',
+    });
+    const logoutPage = await context.newPage();
+    await logoutPage.goto('/dashboard');
+    await expect(logoutPage.getByTestId('logout_button')).toBeVisible();
+    const logoutResponse = logoutPage.waitForResponse(response => response.url().endsWith('/api/auth/logout'));
+    await logoutPage.getByTestId('logout_button').click();
+    expect((await logoutResponse).status()).toBe(200);
+    await expect.poll(async () => (await context.cookies()).filter(cookie => cookie.name.startsWith('sb-')).length).toBe(0);
+    await expect(logoutPage).toHaveURL('/login');
+    await expect(logoutPage.getByTestId('loginForm')).toBeVisible();
+    await context.close();
   });
 });
