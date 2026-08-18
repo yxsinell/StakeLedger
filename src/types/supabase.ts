@@ -150,11 +150,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bet_cashouts_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
+          },
+          {
             foreignKeyName: "bet_cashouts_source_bet_id_fkey"
             columns: ["source_bet_id"]
             isOneToOne: false
             referencedRelation: "bets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_cashouts_source_bet_id_fkey"
+            columns: ["source_bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
           },
         ]
       }
@@ -190,6 +204,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_funding_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
           },
           {
             foreignKeyName: "bet_funding_reserved_transaction_id_fkey"
@@ -232,6 +253,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
           },
           {
             foreignKeyName: "bet_idempotencies_user_id_fkey"
@@ -285,6 +313,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bet_legs_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
+          },
+          {
             foreignKeyName: "bet_legs_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -292,11 +327,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bet_legs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
             foreignKeyName: "bet_legs_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
             referencedRelation: "catalog_markets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_legs_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["market_id"]
           },
         ]
       }
@@ -403,6 +452,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cashout_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
+          },
+          {
             foreignKeyName: "cashout_idempotencies_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -448,6 +504,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "catalog_aliases_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["competition_id"]
+          },
+          {
             foreignKeyName: "catalog_aliases_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -460,6 +523,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "catalog_teams"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_aliases_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["away_team_id"]
+          },
+          {
+            foreignKeyName: "catalog_aliases_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["home_team_id"]
           },
         ]
       }
@@ -562,11 +639,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "catalog_events_away_team_id_fkey"
+            columns: ["away_team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["away_team_id"]
+          },
+          {
+            foreignKeyName: "catalog_events_away_team_id_fkey"
+            columns: ["away_team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["home_team_id"]
+          },
+          {
             foreignKeyName: "catalog_events_competition_id_fkey"
             columns: ["competition_id"]
             isOneToOne: false
             referencedRelation: "catalog_competitions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_events_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["competition_id"]
           },
           {
             foreignKeyName: "catalog_events_created_by_fkey"
@@ -581,6 +679,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "catalog_teams"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_events_home_team_id_fkey"
+            columns: ["home_team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["away_team_id"]
+          },
+          {
+            foreignKeyName: "catalog_events_home_team_id_fkey"
+            columns: ["home_team_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["home_team_id"]
           },
         ]
       }
@@ -635,6 +747,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "catalog_events"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_markets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["event_id"]
           },
         ]
       }
@@ -732,6 +851,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_history_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
           },
           {
             foreignKeyName: "goal_history_goal_id_fkey"
@@ -845,6 +971,13 @@ export type Database = {
             foreignKeyName: "recommendation_follows_recommendation_id_fkey"
             columns: ["recommendation_id"]
             isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_follows_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
             referencedRelation: "recommendations"
             referencedColumns: ["id"]
           },
@@ -922,11 +1055,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "recommendations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["event_id"]
+          },
+          {
             foreignKeyName: "recommendations_market_id_fkey"
             columns: ["market_id"]
             isOneToOne: false
             referencedRelation: "catalog_markets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendations_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_feed"
+            referencedColumns: ["market_id"]
           },
           {
             foreignKeyName: "recommendations_updated_by_fkey"
@@ -1007,6 +1154,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_idempotencies_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
           },
           {
             foreignKeyName: "settlement_idempotencies_user_id_fkey"
@@ -1118,6 +1272,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_bet_id_fkey"
+            columns: ["bet_id"]
+            isOneToOne: false
+            referencedRelation: "settled_bet_metric_trace"
+            referencedColumns: ["bet_id"]
+          },
+          {
             foreignKeyName: "transactions_cashout_id_fkey"
             columns: ["cashout_id"]
             isOneToOne: false
@@ -1159,9 +1320,68 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      recommendation_feed: {
+        Row: {
+          away_team_id: string | null
+          away_team_name: string | null
+          competition_id: string | null
+          competition_name: string | null
+          event_id: string | null
+          event_status: string | null
+          home_team_id: string | null
+          home_team_name: string | null
+          icp: Json | null
+          id: string | null
+          market_id: string | null
+          market_name: string | null
+          odds: number | null
+          published_at: string | null
+          rationale: string | null
+          selection: string | null
+          sport: string | null
+          starts_at: string | null
+          status: string | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      settled_bet_metric_trace: {
+        Row: {
+          bank_id: string | null
+          bank_owner_user_id: string | null
+          bet_id: string | null
+          cash_component_profit: number | null
+          cash_stake: number | null
+          currency: string | null
+          odds: number | null
+          result: string | null
+          settled_at: string | null
+          total_profit: number | null
+          total_stake: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banks_user_id_fkey"
+            columns: ["bank_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bets_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "banks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      assert_normalized_recommendation_reference: {
+        Args: { p_event_id: string; p_market_id: string }
+        Returns: undefined
+      }
       change_user_role: {
         Args: {
           p_actor_user_id: string
@@ -1275,8 +1495,39 @@ export type Database = {
         }
         Returns: Json
       }
+      create_recommendation: {
+        Args: {
+          p_actor_user_id: string
+          p_event_id: string
+          p_icp: Json
+          p_market_id: string
+          p_odds: number
+          p_rationale: string
+          p_selection: string
+          p_type: string
+        }
+        Returns: Json
+      }
+      follow_recommendation: {
+        Args: {
+          p_actor_user_id: string
+          p_bank_id: string
+          p_recommendation_id: string
+        }
+        Returns: Json
+      }
+      get_metrics_overview: {
+        Args: {
+          p_actor_user_id: string
+          p_bank_id: string
+          p_from: string
+          p_to: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_catalog_editor: { Args: never; Returns: boolean }
+      is_valid_recommendation_icp: { Args: { p_icp: Json }; Returns: boolean }
       partial_cashout_bet: {
         Args: {
           p_actor_user_id: string
@@ -1342,6 +1593,21 @@ export type Database = {
           p_stake_preference: number
           p_strategy: string
           p_target_amount: number
+        }
+        Returns: Json
+      }
+      update_recommendation: {
+        Args: {
+          p_actor_user_id: string
+          p_event_id: string
+          p_icp: Json
+          p_market_id: string
+          p_odds: number
+          p_rationale: string
+          p_recommendation_id: string
+          p_selection: string
+          p_status: string
+          p_type: string
         }
         Returns: Json
       }
