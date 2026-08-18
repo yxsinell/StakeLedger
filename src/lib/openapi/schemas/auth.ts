@@ -45,6 +45,19 @@ export const AuthSuccessResponseSchema = z
   })
   .openapi('AuthSuccessResponse');
 
+export const AuthProfileResponseSchema = z
+  .object({
+    success: z.literal(true),
+    profile: z.object({
+      id: z.string().uuid(),
+      email: z.string().email(),
+      role: z.enum(['admin', 'editor', 'user']),
+      role_version: z.number().int().positive(),
+      created_at: z.string(),
+    }),
+  })
+  .openapi('AuthProfileResponse');
+
 const jsonRequest = (schema: z.ZodType) => ({
   required: true,
   content: {
@@ -63,6 +76,22 @@ const successResponse = (description: string) => ({
   description,
   content: {
     'application/json': { schema: AuthSuccessResponseSchema },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/auth/profile',
+  tags: ['Authentication'],
+  summary: 'Get the current cookie-authenticated profile',
+  security: [{ cookieAuth: [] }],
+  responses: {
+    200: {
+      description: 'Authenticated profile',
+      content: { 'application/json': { schema: AuthProfileResponseSchema } },
+    },
+    401: errorResponse,
+    500: errorResponse,
   },
 });
 

@@ -6,4 +6,6 @@ export * from './bets';
 export * from './catalog';
 export * from './common';
 export * from './goals';
+export * from './metrics';
+export * from './recommendations';
 export * from './transactions';

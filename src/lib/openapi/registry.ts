@@ -117,8 +117,16 @@ ${apiBaseUrl}
         description: 'Owned capital goals, daily missions, closure, and risk limits',
       },
       {
+        name: 'Metrics',
+        description: 'Owned-bank performance metrics over settled bets',
+      },
+      {
         name: 'System',
         description: 'System endpoints (health, openapi)',
+      },
+      {
+        name: 'Recommendations',
+        description: 'Normalized recommendation publishing, feed, management, and safe bet prefill',
       },
     ],
   });

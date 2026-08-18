@@ -111,6 +111,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
 
+  /api/auth/profile:
+    get:
+      summary: Get current cookie-authenticated profile
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Authenticated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthProfileResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/ServerError'}
+
   /api/auth/reset-password:
     post:
       summary: Request password reset
@@ -849,28 +864,65 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
 
+  /api/admin/recommendations:
+    get:
+      summary: List recommendations for editor/admin management
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [draft, published, inactive]}
+        - in: query
+          name: type
+          schema: {type: string, enum: [pre, live]}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 50, default: 25}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+      responses:
+        '200': {description: Editorial recommendation list, content: {application/json: {schema: {$ref: '#/components/schemas/RecommendationAdminListResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
   /api/recommendations:
     get:
-      summary: List recommendations
+      summary: List published recommendations using stable cursor pagination
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: type
-          schema:
-            type: string
-            enum: [pre, live]
+          schema: {type: string, enum: [pre, live]}
+        - in: query
+          name: sport
+          schema: {type: string, minLength: 1, maxLength: 100}
+        - in: query
+          name: leagueId
+          schema: {type: string, format: uuid}
+        - in: query
+          name: cursor
+          description: Opaque cursor for the last `(published_at,id)` pair returned.
+          schema: {type: string, minLength: 1}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
       responses:
         '200':
-          description: Recommendation list
+          description: Published-only list ordered by `published_at DESC,id DESC`; ICP is visible but never used for ranking.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendationListResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
     post:
-      summary: Create recommendation (admin)
+      summary: Create recommendation draft (editor/admin)
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -879,17 +931,42 @@ paths:
               $ref: '#/components/schemas/RecommendationCreateRequest'
       responses:
         '201':
-          description: Recommendation created
+          description: Recommendation draft created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendationResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/recommendations/{recommendationId}:
+    patch:
+      summary: Edit a draft or published recommendation (editor/admin)
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RecommendationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecommendationUpdateRequest'}
+      responses:
+        '200': {description: Recommendation updated, content: {application/json: {schema: {$ref: '#/components/schemas/RecommendationResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/recommendations/{recommendationId}/follow:
     post:
       summary: Follow recommendation
+      description: Persists one follow per user/recommendation and returns normalized bet prefill only. Never creates a ticket or ledger entry.
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - $ref: '#/components/parameters/RecommendationId'
       requestBody:
@@ -900,23 +977,44 @@ paths:
               $ref: '#/components/schemas/RecommendationFollowRequest'
       responses:
         '200':
-          description: Prefilled bet payload
+          description: Existing idempotent follow and normalized bet prefill
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PrefillBetResponse'
+        '201':
+          description: Follow persisted and normalized bet prefill returned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrefillBetResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/metrics/overview:
     get:
       summary: Get metrics overview
+      description: Settled-only metrics for an owned bank and inclusive UTC date range of at most 366 days. Cashout is excluded.
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: bankId
+          required: true
           schema:
             type: string
             format: uuid
+        - in: query
+          name: from
+          required: true
+          description: Inclusive UTC calendar date.
+          schema: {type: string, format: date}
+        - in: query
+          name: to
+          required: true
+          description: Inclusive UTC calendar date; range from `from` cannot exceed 366 days.
+          schema: {type: string, format: date}
       responses:
         '200':
           description: Metrics summary
@@ -924,18 +1022,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetricsResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: apiKey
-      in: cookie
-      name: sb-<project-ref>-auth-token
-      description: Legacy scheme name. This web API uses the Supabase BFF session cookie, never an Authorization bearer token.
     cookieAuth:
       type: apiKey
       in: cookie
       name: sb-<project-ref>-auth-token
+      description: Supabase session cookie consumed by Next.js BFF routes. Authorization bearer tokens are not part of the public web contract.
 
   parameters:
     BankId:
@@ -1013,6 +1110,21 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+    AuthProfileResponse:
+      type: object
+      required: [success, profile]
+      properties:
+        success: {type: boolean, enum: [true]}
+        profile:
+          type: object
+          required: [id, email, role, role_version, created_at]
+          properties:
+            id: {type: string, format: uuid}
+            email: {type: string, format: email}
+            role: {type: string, enum: [admin, editor, user]}
+            role_version: {type: integer, minimum: 1}
+            created_at: {type: string, format: date-time}
+
     SuccessResponse:
       type: object
       properties:
@@ -1785,22 +1897,50 @@ components:
         updatedAt: {type: string, format: date-time}
       required: [id, bank, status, baseAmount, targetAmount, deadline, stakePreference, strategy, closedAt, closureReason, dailyProfit, suggestedOdds, currentCash, remainingAmount, calendarDays, progressPct, history, riskAssessment, createdAt, updatedAt]
 
-    RecommendationCreateRequest:
+    RecommendationIcp:
       type: object
+      additionalProperties: false
       properties:
-        eventId:
-          type: string
-          format: uuid
-        market:
-          type: string
-        odds:
-          type: number
-        type:
-          type: string
-          enum: [pre, live]
-        icp:
-          type: integer
-      required: [eventId, market, odds, type, icp]
+        version: {type: integer, enum: [1]}
+        score: {type: integer, minimum: 0, maximum: 100}
+        factors:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: {type: string, minLength: 1}
+      required: [version, score, factors]
+
+    RecommendationMutation:
+      type: object
+      additionalProperties: false
+      properties:
+        eventId: {type: string, format: uuid}
+        marketId: {type: string, format: uuid}
+        selection: {type: string, minLength: 1, maxLength: 100}
+        odds: {type: number, exclusiveMinimum: 1}
+        type: {type: string, enum: [pre, live]}
+        rationale: {type: string, minLength: 1, maxLength: 2000}
+        icp: {$ref: '#/components/schemas/RecommendationIcp'}
+        status: {type: string, enum: [draft]}
+      required: [eventId, marketId, selection, odds, type, rationale, icp, status]
+
+    RecommendationCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/RecommendationMutation'
+
+    RecommendationUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        eventId: {type: string, format: uuid}
+        marketId: {type: string, format: uuid}
+        selection: {type: string, minLength: 1, maxLength: 100}
+        odds: {type: number, exclusiveMinimum: 1}
+        type: {type: string, enum: [pre, live]}
+        rationale: {type: string, minLength: 1, maxLength: 2000}
+        icp: {$ref: '#/components/schemas/RecommendationIcp'}
+        status: {type: string, enum: [draft, published, inactive]}
 
     RecommendationFollowRequest:
       type: object
@@ -1817,6 +1957,7 @@ components:
           type: boolean
         recommendation:
           $ref: '#/components/schemas/Recommendation'
+      required: [success, recommendation]
 
     RecommendationListResponse:
       type: object
@@ -1827,6 +1968,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Recommendation'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Opaque cursor after the final `(published_at,id)` pair, or null when exhausted.
+      required: [success, recommendations, nextCursor]
 
     Recommendation:
       type: object
@@ -1836,12 +1982,44 @@ components:
           format: uuid
         type:
           type: string
+          enum: [pre, live]
+        event:
+          type: object
+          required: [id, name, startsAt, status, homeTeam, awayTeam, sport, league]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+            startsAt: {type: string, format: date-time}
+            status: {type: string, enum: [scheduled, live, finished, cancelled]}
+            homeTeam: {type: object, required: [id, name], properties: {id: {type: string, format: uuid}, name: {type: string}}}
+            awayTeam: {type: object, required: [id, name], properties: {id: {type: string, format: uuid}, name: {type: string}}}
+            sport: {type: string}
+            league: {type: object, required: [id, name], properties: {id: {type: string, format: uuid}, name: {type: string}}}
         market:
-          type: string
+          type: object
+          required: [id, name]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+        selection: {type: string}
         odds:
           type: number
         icp:
-          type: integer
+          $ref: '#/components/schemas/RecommendationIcp'
+        rationale: {type: string}
+        status: {type: string, enum: [draft, published, inactive]}
+        publishedAt: {type: string, format: date-time, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+      required: [id, event, market, selection, type, odds, rationale, icp, status, publishedAt, createdAt, updatedAt]
+
+    RecommendationAdminListResponse:
+      type: object
+      required: [success, recommendations, nextOffset]
+      properties:
+        success: {type: boolean}
+        recommendations: {type: array, items: {$ref: '#/components/schemas/Recommendation'}}
+        nextOffset: {type: integer, nullable: true, minimum: 0}
 
     PrefillBetResponse:
       type: object
@@ -1850,14 +2028,35 @@ components:
           type: boolean
         prefill:
           type: object
+          additionalProperties: false
           properties:
-            eventId:
-              type: string
-              format: uuid
-            market:
-              type: string
-            odds:
-              type: number
+            bankId: {type: string, format: uuid}
+            recommendationId: {type: string, format: uuid}
+            odds: {type: number, exclusiveMinimum: 1}
+            legs:
+              type: array
+              minItems: 1
+              maxItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  referenceType: {type: string, enum: [normalized]}
+                  eventId: {type: string, format: uuid}
+                  marketId: {type: string, format: uuid}
+                  selection: {type: string}
+                  odds: {type: number, exclusiveMinimum: 1}
+                required: [referenceType, eventId, marketId, selection, odds]
+          required: [bankId, recommendationId, odds, legs]
+        follow:
+          type: object
+          properties:
+            id: {type: string, format: uuid}
+            recommendationId: {type: string, format: uuid}
+            bankId: {type: string, format: uuid}
+            createdAt: {type: string, format: date-time}
+          required: [id, recommendationId, bankId, createdAt]
+      required: [success, follow, prefill]
 
     MetricsResponse:
       type: object
@@ -1867,9 +2066,25 @@ components:
         metrics:
           type: object
           properties:
+            bankId: {type: string, format: uuid}
+            currency: {type: string}
+            from: {type: string, format: date}
+            to: {type: string, format: date}
+            settledCount: {type: integer, minimum: 0}
+            decisiveCount: {type: integer, minimum: 0}
+            cashStake: {type: number, minimum: 0}
+            totalStake: {type: number, minimum: 0}
+            totalProfit: {type: number}
             yieldCash:
               type: number
+              description: Cash funding component profit divided by cash-funded stake; zero when denominator is zero.
             yieldOperative:
               type: number
+              description: sum(profit_amount) / sum(stake_amount) for settled bets; zero when denominator is zero.
             winRate:
               type: number
+              minimum: 0
+              maximum: 1
+              description: (won + half_won*0.5) / decisiveCount; decisive excludes void and cashout.
+          required: [bankId, currency, from, to, settledCount, decisiveCount, cashStake, totalStake, totalProfit, yieldCash, yieldOperative, winRate]
+      required: [success, metrics]
