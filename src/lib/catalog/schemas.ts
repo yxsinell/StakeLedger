@@ -1,4 +1,5 @@
-import { z } from '@/lib/openapi/registry';
+import { registry, z } from '@/lib/openapi/registry';
+import { ErrorResponseSchema } from '@/lib/openapi/schemas/common';
 
 const optionalTrimmedString = (max: number) =>
   z.preprocess(
@@ -15,6 +16,8 @@ export const CatalogNormalizationStatusSchema = z.enum([
   'deprecated',
 ]);
 export const CatalogMatchedBySchema = z.enum(['name', 'alias', 'manual']);
+export const CatalogEventStatusSchema = z.enum(['scheduled', 'live']);
+export const CatalogEventIdSchema = z.string().uuid('Event not found');
 
 export const CatalogSearchQuerySchema = z
   .object({
@@ -25,6 +28,17 @@ export const CatalogSearchQuerySchema = z
   .strict();
 
 export const CatalogAdminListQuerySchema = z
+  .object({
+    q: optionalTrimmedString(100).refine(
+      value => value === undefined || value.length >= 2,
+      'Search query must contain at least 2 characters',
+    ),
+    limit: z.coerce.number().int().min(1).max(50).default(25),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
+  })
+  .strict();
+
+export const CatalogEventListQuerySchema = z
   .object({
     q: optionalTrimmedString(100).refine(
       value => value === undefined || value.length >= 2,
@@ -68,6 +82,53 @@ export const CatalogListResponseSchema = z
   })
   .strict()
   .openapi('CatalogListResponse');
+
+const CatalogEventParticipantSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+  })
+  .strict();
+
+export const CatalogEventSchema = z
+  .object({
+    id: CatalogEventIdSchema,
+    name: z.string(),
+    startsAt: z.string(),
+    status: CatalogEventStatusSchema,
+    sport: z.string(),
+    competition: CatalogEventParticipantSchema,
+    homeTeam: CatalogEventParticipantSchema,
+    awayTeam: CatalogEventParticipantSchema,
+  })
+  .strict()
+  .openapi('CatalogEvent');
+
+export const CatalogEventListResponseSchema = z
+  .object({
+    success: z.literal(true),
+    events: z.array(CatalogEventSchema),
+    nextOffset: z.number().int().nonnegative().nullable(),
+  })
+  .strict()
+  .openapi('CatalogEventListResponse');
+
+export const CatalogMarketSchema = z
+  .object({
+    id: z.string().uuid(),
+    eventId: CatalogEventIdSchema,
+    name: z.string(),
+  })
+  .strict()
+  .openapi('CatalogMarket');
+
+export const CatalogMarketListResponseSchema = z
+  .object({
+    success: z.literal(true),
+    markets: z.array(CatalogMarketSchema),
+  })
+  .strict()
+  .openapi('CatalogMarketListResponse');
 
 export const CatalogManualRequestSchema = z
   .object({
@@ -158,8 +219,52 @@ export const CatalogAliasResponseSchema = z
 export type CatalogEntityType = z.infer<typeof CatalogEntityTypeSchema>;
 export type CatalogSearchQuery = z.infer<typeof CatalogSearchQuerySchema>;
 export type CatalogAdminListQuery = z.infer<typeof CatalogAdminListQuerySchema>;
+export type CatalogEventListQuery = z.infer<typeof CatalogEventListQuerySchema>;
 export type CatalogManualInput = z.infer<typeof CatalogManualRequestSchema>;
 export type CatalogTeamAdminInput = z.infer<typeof CatalogTeamAdminRequestSchema>;
 export type CatalogCompetitionAdminInput = z.infer<typeof CatalogCompetitionAdminRequestSchema>;
 export type CatalogAdminInput = CatalogTeamAdminInput | CatalogCompetitionAdminInput;
 export type CatalogAliasInput = z.infer<typeof CatalogAliasRequestSchema>;
+
+const catalogReadErrorResponse = {
+  description: 'Request failed',
+  content: {
+    'application/json': { schema: ErrorResponseSchema },
+  },
+};
+
+registry.registerPath({
+  method: 'get',
+  path: '/catalog/events',
+  tags: ['Catalog'],
+  summary: 'List searchable normalized scheduled or live events',
+  security: [{ cookieAuth: [] }],
+  request: { query: CatalogEventListQuerySchema },
+  responses: {
+    200: {
+      description: 'Normalized catalog events',
+      content: { 'application/json': { schema: CatalogEventListResponseSchema } },
+    },
+    400: catalogReadErrorResponse,
+    401: catalogReadErrorResponse,
+    500: catalogReadErrorResponse,
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/catalog/events/{eventId}/markets',
+  tags: ['Catalog'],
+  summary: 'List active markets for a normalized event',
+  security: [{ cookieAuth: [] }],
+  request: { params: z.object({ eventId: CatalogEventIdSchema }) },
+  responses: {
+    200: {
+      description: 'Active catalog markets',
+      content: { 'application/json': { schema: CatalogMarketListResponseSchema } },
+    },
+    401: catalogReadErrorResponse,
+    404: catalogReadErrorResponse,
+    500: catalogReadErrorResponse,
+  },
+});

@@ -3,6 +3,7 @@
 import type { Recommendation } from '@/lib/recommendations/schemas';
 import { Edit3, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { CatalogEventMarketSelector } from '@/components/catalog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +54,7 @@ function statusLabel(status: Recommendation['status']) {
 }
 
 export function RecommendationAdmin() {
-  const { profile } = useAuth();
+  const { profile, profileLoading } = useAuth();
   const canEdit = profile?.role === 'admin' || profile?.role === 'editor';
   const [items, setItems] = useState<Recommendation[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -210,10 +211,14 @@ export function RecommendationAdmin() {
     }
   };
 
+  if (profileLoading) {
+    return <main className="mx-auto w-full max-w-3xl" aria-busy="true" data-testid="recommendationAdmin"><p role="status" data-testid="recommendation_admin_auth_loading">Comprobando permisos...</p></main>;
+  }
+
   if (!canEdit) {
     return (
       <main className="mx-auto w-full max-w-3xl" data-testid="recommendationAdmin">
-        <Card>
+        <Card data-testid="recommendation_admin_restricted_state">
           <CardHeader>
             <CardTitle>Acceso restringido</CardTitle>
             <CardDescription>Necesitas rol editor o admin para gestionar recomendaciones.</CardDescription>
@@ -224,7 +229,7 @@ export function RecommendationAdmin() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6" data-testid="recommendationAdmin">
+    <main className="mx-auto w-full max-w-7xl space-y-6" aria-busy={loading || saving} data-testid="recommendationAdmin">
       <header className="flex flex-col gap-4 rounded-3xl border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <Badge variant="secondary">Mesa editorial</Badge>
@@ -237,7 +242,14 @@ export function RecommendationAdmin() {
         </Button>
       </header>
 
-      {error ? <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert" data-testid="recommendation_admin_error">{error}</p> : null}
+      {error
+        ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3" role="alert" data-testid="recommendation_admin_error">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button type="button" size="sm" variant="outline" data-testid="retry_recommendations_button" onClick={() => void loadItems(offset)}>Reintentar</Button>
+            </div>
+          )
+        : null}
       {success ? <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-600" role="status" data-testid="recommendation_admin_success">{success}</p> : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
@@ -265,8 +277,8 @@ export function RecommendationAdmin() {
               </Button>
             </div>
             <div className="space-y-3" aria-busy={loading} data-testid="admin_recommendation_list">
-              {loading ? <p className="py-8 text-center text-sm text-muted-foreground" role="status">Cargando recomendaciones...</p> : null}
-              {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No hay recomendaciones en esta página.</p> : null}
+              {loading ? <p className="py-8 text-center text-sm text-muted-foreground" role="status" data-testid="recommendations_loading">Cargando recomendaciones...</p> : null}
+              {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground" data-testid="recommendations_empty_state">No hay recomendaciones en esta página.</p> : null}
               {!loading && items.map(item => (
                 <article className="rounded-2xl border bg-background p-4" key={item.id} data-testid="adminRecommendationCard">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -319,22 +331,24 @@ export function RecommendationAdmin() {
             <CardTitle>{selected ? 'Editar recomendación' : 'Nuevo borrador'}</CardTitle>
             <CardDescription className="flex items-start gap-2">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-              Solo referencias normalizadas. Catálogo no expone búsqueda de eventos/mercados: introduce UUID válidos y relacionados.
+              Solo referencias normalizadas. Selecciona evento scheduled o live y mercado activo relacionado.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" data-testid="recommendationForm" onSubmit={event => void save(event)}>
               <fieldset className="space-y-4" disabled={saving || selected?.status === 'inactive'}>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="recommendation-event-id">UUID de evento normalizado</Label>
-                    <Input id="recommendation-event-id" required value={form.eventId} data-testid="recommendation_event_id_input" onChange={event => updateForm('eventId', event.target.value)} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="recommendation-market-id">UUID de mercado normalizado</Label>
-                    <Input id="recommendation-market-id" required value={form.marketId} data-testid="recommendation_market_id_input" onChange={event => updateForm('marketId', event.target.value)} />
-                  </div>
-                </div>
+                <CatalogEventMarketSelector
+                  disabled={saving || selected?.status === 'inactive'}
+                  eventId={form.eventId}
+                  marketId={form.marketId}
+                  eventTestId="recommendation_event_id_input"
+                  marketTestId="recommendation_market_id_input"
+                  onChange={reference => setForm(current => ({
+                    ...current,
+                    eventId: reference.eventId,
+                    marketId: reference.marketId,
+                  }))}
+                />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="recommendation-selection">Selección</Label>

@@ -5,6 +5,7 @@ import type { Goal } from '@/lib/goals/schemas';
 import { Plus, Trash2 } from 'lucide-react';
 
 import { useEffect, useRef, useState } from 'react';
+import { CatalogEventMarketSelector } from '@/components/catalog';
 import { readRecommendationPrefill } from '@/components/recommendations/recommendation-prefill';
 import { Button } from '@/components/ui/button';
 import {
@@ -523,26 +524,43 @@ export function BetTicketForm() {
                       Eliminar
                     </Button>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>{leg.referenceType === 'manual' ? 'Evento' : 'UUID del evento'}</Label>
-                    <Input
-                      value={leg.eventReference}
-                      maxLength={100}
-                      placeholder={leg.referenceType === 'manual' ? 'Equipo A vs. Equipo B' : 'UUID del evento'}
-                      data-testid={leg.referenceType === 'manual' ? 'manual_event_input' : 'leg_event_select'}
-                      onChange={event => updateLeg(index, { eventReference: event.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{leg.referenceType === 'manual' ? 'Mercado' : 'UUID del mercado'}</Label>
-                    <Input
-                      value={leg.marketReference}
-                      maxLength={100}
-                      placeholder={leg.referenceType === 'manual' ? 'Ganador del partido' : 'UUID del mercado'}
-                      data-testid={leg.referenceType === 'manual' ? 'manual_market_input' : 'leg_market_select'}
-                      onChange={event => updateLeg(index, { marketReference: event.target.value })}
-                    />
-                  </div>
+                  {leg.referenceType === 'manual'
+                    ? (
+                        <>
+                          <div className="grid gap-2">
+                            <Label>Evento</Label>
+                            <Input
+                              value={leg.eventReference}
+                              maxLength={100}
+                              placeholder="Equipo A vs. Equipo B"
+                              data-testid="manual_event_input"
+                              onChange={event => updateLeg(index, { eventReference: event.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Mercado</Label>
+                            <Input
+                              value={leg.marketReference}
+                              maxLength={100}
+                              placeholder="Ganador del partido"
+                              data-testid="manual_market_input"
+                              onChange={event => updateLeg(index, { marketReference: event.target.value })}
+                            />
+                          </div>
+                        </>
+                      )
+                    : (
+                        <CatalogEventMarketSelector
+                          eventId={leg.eventReference}
+                          marketId={leg.marketReference}
+                          eventTestId="leg_event_select"
+                          marketTestId="leg_market_select"
+                          onChange={reference => updateLeg(index, {
+                            eventReference: reference.eventId,
+                            marketReference: reference.marketId,
+                          })}
+                        />
+                      )}
                   <div className="grid gap-2">
                     <Label>Selección</Label>
                     <Input

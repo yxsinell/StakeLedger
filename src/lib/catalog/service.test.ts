@@ -6,6 +6,8 @@ import {
   CatalogServiceError,
   createCatalogAlias,
   createManualCatalogItem,
+  listActiveCatalogMarkets,
+  listCatalogEvents,
   searchCatalog,
   upsertCatalogItem,
 } from './service';
@@ -18,7 +20,115 @@ const clientWithRpc = (
   rpc: (name: string, args: unknown) => Promise<{ data: unknown, error: unknown }>,
 ) => ({ rpc }) as unknown as SupabaseClient<Database>;
 
+const eventId = '550e8400-e29b-41d4-a716-446655440003';
+const marketId = '550e8400-e29b-41d4-a716-446655440004';
+
+const clientWithEvents = (data: unknown) => ({
+  from: (table: string) => {
+    expect(table).toBe('catalog_events');
+    return {
+      select: () => ({
+        in: (column: string, values: string[]) => {
+          expect(column).toBe('status');
+          expect(values).toEqual(['scheduled', 'live']);
+          return {
+            order: () => ({
+              order: () => ({
+                range: async () => ({ data, error: null }),
+              }),
+            }),
+          };
+        },
+      }),
+    };
+  },
+}) as unknown as SupabaseClient<Database>;
+
+const clientWithMarkets = (data: unknown) => ({
+  from: (table: string) => {
+    expect(table).toBe('catalog_markets');
+    return {
+      select: () => ({
+        eq: (column: string, value: string) => {
+          expect(column).toBe('event_id');
+          expect(value).toBe(eventId);
+          return {
+            eq: (statusColumn: string, status: string) => {
+              expect(statusColumn).toBe('status');
+              expect(status).toBe('active');
+              return {
+                order: () => ({
+                  order: async () => ({ data, error: null }),
+                }),
+              };
+            },
+          };
+        },
+      }),
+    };
+  },
+}) as unknown as SupabaseClient<Database>;
+
 describe('catalog RPC services', () => {
+  test('lists only normalized scheduled or live events matching the search', async () => {
+    const result = await listCatalogEvents(clientWithEvents([
+      {
+        id: eventId,
+        starts_at: '2026-08-20T18:00:00.000Z',
+        status: 'scheduled',
+        catalog_competitions: { id: itemId, name: 'La Liga', sport: 'football', normalization_status: 'normalized' },
+        catalog_teams: { id: itemId, name: 'Barcelona', normalization_status: 'normalized' },
+        catalog_teams_away: { id: aliasId, name: 'Valencia', normalization_status: 'normalized' },
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440005',
+        starts_at: '2026-08-20T20:00:00.000Z',
+        status: 'live',
+        catalog_competitions: { id: itemId, name: 'La Liga', sport: 'football', normalization_status: 'manual' },
+        catalog_teams: { id: itemId, name: 'Barcelona', normalization_status: 'normalized' },
+        catalog_teams_away: { id: aliasId, name: 'Valencia', normalization_status: 'normalized' },
+      },
+    ]), { q: 'barc', limit: 25, offset: 0 });
+
+    expect(result.events).toEqual([expect.objectContaining({
+      id: eventId,
+      name: 'Barcelona vs. Valencia',
+      status: 'scheduled',
+    })]);
+  });
+
+  test('lists active markets scoped to the selected event', async () => {
+    const result = await listActiveCatalogMarkets(clientWithMarkets([
+      { id: marketId, event_id: eventId, name: 'Match winner' },
+    ]), eventId);
+
+    expect(result.markets).toEqual([{ id: marketId, eventId, name: 'Match winner' }]);
+  });
+
+  test('uses the extra row only to determine the next event page', async () => {
+    const result = await listCatalogEvents(clientWithEvents([
+      {
+        id: eventId,
+        starts_at: '2026-08-20T18:00:00.000Z',
+        status: 'scheduled',
+        catalog_competitions: { id: itemId, name: 'La Liga', sport: 'football', normalization_status: 'normalized' },
+        catalog_teams: { id: itemId, name: 'Barcelona', normalization_status: 'normalized' },
+        catalog_teams_away: { id: aliasId, name: 'Valencia', normalization_status: 'normalized' },
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440005',
+        starts_at: '2026-08-20T20:00:00.000Z',
+        status: 'scheduled',
+        catalog_competitions: { id: itemId, name: 'La Liga', sport: 'football', normalization_status: 'normalized' },
+        catalog_teams: { id: itemId, name: 'Madrid', normalization_status: 'normalized' },
+        catalog_teams_away: { id: aliasId, name: 'Sevilla', normalization_status: 'normalized' },
+      },
+    ]), { limit: 1, offset: 0 });
+
+    expect(result.events).toHaveLength(1);
+    expect(result.nextOffset).toBe(1);
+  });
+
   test('calls search_catalog and validates its response', async () => {
     const client = clientWithRpc(async (name, args) => {
       expect(name).toBe('search_catalog');

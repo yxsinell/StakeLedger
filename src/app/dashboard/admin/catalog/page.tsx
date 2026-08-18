@@ -55,7 +55,7 @@ function getApiError(payload: unknown): ApiError {
 }
 
 export default function CatalogAdminPage() {
-  const { profile } = useAuth();
+  const { profile, profileLoading } = useAuth();
   const [type, setType] = useState<CatalogEntityType>('team');
   const [items, setItems] = useState<CatalogAdminItem[]>([]);
   const [query, setQuery] = useState('');
@@ -215,10 +215,14 @@ export default function CatalogAdminPage() {
     void loadItems(0, query.trim());
   };
 
+  if (profileLoading) {
+    return <main className="mx-auto w-full max-w-3xl" aria-busy="true" data-testid="catalogAdminPage"><p role="status" data-testid="catalog_admin_auth_loading">Comprobando permisos...</p></main>;
+  }
+
   if (!canEdit) {
     return (
       <main className="mx-auto w-full max-w-3xl" data-testid="catalogAdminPage">
-        <Card>
+        <Card data-testid="catalog_admin_restricted_state">
           <CardHeader>
             <CardTitle>Acceso restringido</CardTitle>
             <CardDescription>Necesitas rol de editor o administrador para gestionar el catálogo.</CardDescription>
@@ -229,14 +233,14 @@ export default function CatalogAdminPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6" data-testid="catalogAdminPage">
+    <main className="mx-auto w-full max-w-6xl space-y-6" aria-busy={loading || saving} data-testid="catalogAdminPage">
       <section className="flex flex-col gap-4 rounded-3xl border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <Badge variant="secondary">Editor de catálogo</Badge>
           <h1 className="text-3xl font-semibold tracking-tight">Catálogo y alias</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">Crea y actualiza datos normalizados sin romper referencias existentes.</p>
         </div>
-        <Button disabled={saving} onClick={resetForm}>
+        <Button disabled={saving} data-testid="new_catalog_item_button" onClick={resetForm}>
           <Plus className="mr-2 h-4 w-4" />
           {' '}
           Nuevo elemento
@@ -261,6 +265,7 @@ export default function CatalogAdminPage() {
                   key={option}
                   type="button"
                   variant={type === option ? 'default' : 'outline'}
+                  data-testid={`catalog_${option}_button`}
                   onClick={() => {
                     setType(option);
                     setAppliedQuery('');
@@ -272,14 +277,21 @@ export default function CatalogAdminPage() {
                 </Button>
               ))}
             </div>
-            <form className="flex gap-2" onSubmit={handleSearch}>
-              <Input aria-label="Buscar catálogo" disabled={saving} placeholder="Buscar por nombre" value={query} onChange={event => setQuery(event.target.value)} />
-              <Button aria-label="Buscar" disabled={saving} type="submit" variant="outline"><Search className="h-4 w-4" /></Button>
+            <form className="flex gap-2" data-testid="catalog_search_form" onSubmit={handleSearch}>
+              <Input aria-label="Buscar catálogo" data-testid="catalog_search_input" disabled={saving} placeholder="Buscar por nombre" value={query} onChange={event => setQuery(event.target.value)} />
+              <Button aria-label="Buscar" data-testid="search_catalog_button" disabled={saving} type="submit" variant="outline"><Search className="h-4 w-4" /></Button>
             </form>
-            {error ? <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{error}</p> : null}
-            <div className="space-y-3" aria-busy={loading}>
-              {loading ? <p className="py-8 text-center text-sm text-muted-foreground" role="status">Cargando catálogo…</p> : null}
-              {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">No hay elementos en esta página.</p> : null}
+            {error
+              ? (
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3" role="alert" data-testid="catalog_admin_error">
+                    <p className="text-sm text-destructive">{error}</p>
+                    <Button type="button" size="sm" variant="outline" data-testid="retry_catalog_button" onClick={() => void loadItems(offset)}>Reintentar</Button>
+                  </div>
+                )
+              : null}
+            <div className="space-y-3" aria-busy={loading} data-testid="catalog_admin_list">
+              {loading ? <p className="py-8 text-center text-sm text-muted-foreground" role="status" data-testid="catalog_admin_loading">Cargando catálogo…</p> : null}
+              {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground" data-testid="catalog_empty_state">No hay elementos en esta página.</p> : null}
               {!loading && items.map(item => (
                 <article className="rounded-2xl border bg-background p-4" key={item.id}>
                   <div className="flex items-start justify-between gap-3">
@@ -294,7 +306,7 @@ export default function CatalogAdminPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {item.aliases.map(alias => <Badge key={alias.id} variant="secondary">{alias.alias}</Badge>)}
-                    <Button className="ml-auto" disabled={saving} size="sm" type="button" variant="ghost" onClick={() => selectItem(item)}>
+                    <Button className="ml-auto" disabled={saving} data-testid="edit_catalog_item_button" size="sm" type="button" variant="ghost" onClick={() => selectItem(item)}>
                       <Edit3 className="mr-2 h-4 w-4" />
                       {' '}
                       Editar
@@ -309,8 +321,8 @@ export default function CatalogAdminPage() {
                 {Math.floor(offset / PAGE_SIZE) + 1}
               </span>
               <div className="flex gap-2">
-                <Button disabled={offset === 0 || loading || saving} size="sm" variant="outline" onClick={() => void loadItems(Math.max(0, offset - PAGE_SIZE))}>Anterior</Button>
-                <Button disabled={nextOffset === null || loading || saving} size="sm" variant="outline" onClick={() => void loadItems(nextOffset ?? offset)}>Siguiente</Button>
+                <Button data-testid="previous_catalog_page_button" disabled={offset === 0 || loading || saving} size="sm" variant="outline" onClick={() => void loadItems(Math.max(0, offset - PAGE_SIZE))}>Anterior</Button>
+                <Button data-testid="next_catalog_page_button" disabled={nextOffset === null || loading || saving} size="sm" variant="outline" onClick={() => void loadItems(nextOffset ?? offset)}>Siguiente</Button>
               </div>
             </div>
           </CardContent>
@@ -326,18 +338,18 @@ export default function CatalogAdminPage() {
               <fieldset className="space-y-4" disabled={saving}>
                 <div className="space-y-2">
                   <Label htmlFor="catalog-name">Nombre</Label>
-                  <Input id="catalog-name" maxLength={100} required value={form.name} onChange={event => updateForm('name', event.target.value)} />
+                  <Input id="catalog-name" data-testid="catalog_name_input" maxLength={100} required value={form.name} onChange={event => updateForm('name', event.target.value)} />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="catalog-country">País</Label>
-                    <Input id="catalog-country" maxLength={100} value={form.country} onChange={event => updateForm('country', event.target.value)} />
+                    <Input id="catalog-country" data-testid="catalog_country_input" maxLength={100} value={form.country} onChange={event => updateForm('country', event.target.value)} />
                   </div>
                   {type === 'competition'
                     ? (
                         <div className="space-y-2">
                           <Label htmlFor="catalog-sport">Deporte</Label>
-                          <Input id="catalog-sport" maxLength={50} required value={form.sport} onChange={event => updateForm('sport', event.target.value)} />
+                          <Input id="catalog-sport" data-testid="catalog_sport_input" maxLength={50} required value={form.sport} onChange={event => updateForm('sport', event.target.value)} />
                         </div>
                       )
                     : null}
@@ -364,7 +376,7 @@ export default function CatalogAdminPage() {
                 </div>
                 {status ? <p className="text-sm text-emerald-500" role="status">{status}</p> : null}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" onClick={resetForm}>Limpiar</Button>
+                  <Button type="button" variant="outline" data-testid="clear_catalog_form_button" onClick={resetForm}>Limpiar</Button>
                   <Button data-testid="save_catalog_item_button" disabled={saving} type="submit">
                     {saving ? 'Guardando…' : 'Guardar elemento'}
                   </Button>

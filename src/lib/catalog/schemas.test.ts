@@ -5,6 +5,7 @@ import {
   CatalogAliasRequestSchema,
   CatalogCompetitionAdminRequestSchema,
   CatalogEntityTypeSchema,
+  CatalogEventListQuerySchema,
   CatalogManualRequestSchema,
   CatalogSearchQuerySchema,
   CatalogTeamAdminRequestSchema,
@@ -39,6 +40,22 @@ describe('CatalogSearchQuerySchema', () => {
   test('allows admin pages up to 50 items', () => {
     expect(CatalogAdminListQuerySchema.parse({ limit: 50 })).toMatchObject({ limit: 50 });
     expect(CatalogAdminListQuerySchema.safeParse({ limit: 51 }).success).toBe(false);
+  });
+});
+
+describe('CatalogEventListQuerySchema', () => {
+  test('defaults event listing pagination and normalizes search input', () => {
+    expect(CatalogEventListQuerySchema.parse({ q: '  barcelona  ' })).toEqual({
+      q: 'barcelona',
+      limit: 25,
+      offset: 0,
+    });
+  });
+
+  test('rejects event searches below two characters and excessive pages', () => {
+    expect(CatalogEventListQuerySchema.safeParse({ q: 'a' }).success).toBe(false);
+    expect(CatalogEventListQuerySchema.safeParse({ limit: 51 }).success).toBe(false);
+    expect(CatalogEventListQuerySchema.safeParse({ offset: 10001 }).success).toBe(false);
   });
 });
 

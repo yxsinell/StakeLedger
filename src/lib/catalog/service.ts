@@ -5,6 +5,7 @@ import type {
   CatalogAdminListQuery,
   CatalogAliasInput,
   CatalogEntityType,
+  CatalogEventListQuery,
   CatalogManualInput,
   CatalogSearchQuery,
 } from './schemas';
@@ -13,8 +14,10 @@ import {
   CatalogAdminListResponseSchema,
   CatalogAdminMutationResponseSchema,
   CatalogAliasResponseSchema,
+  CatalogEventListResponseSchema,
   CatalogItemResponseSchema,
   CatalogListResponseSchema,
+  CatalogMarketListResponseSchema,
 } from './schemas';
 
 type CatalogServiceErrorCode
@@ -36,6 +39,14 @@ type CatalogTeamRow = Database['public']['Tables']['catalog_teams']['Row'] & {
 type CatalogCompetitionRow = Database['public']['Tables']['catalog_competitions']['Row'] & {
   catalog_aliases: CatalogAliasRow[]
 };
+interface CatalogEventRow {
+  id: string
+  starts_at: string
+  status: string
+  catalog_competitions: { id: string, name: string, sport: string | null, normalization_status: string } | null
+  catalog_teams: { id: string, name: string, normalization_status: string } | null
+  catalog_teams_away: { id: string, name: string, normalization_status: string } | null
+}
 
 export class CatalogServiceError extends Error {
   constructor(
@@ -113,6 +124,89 @@ export const searchCatalog = async (
       ? result.nextOffset
       : null,
   };
+};
+
+export const listCatalogEvents = async (
+  supabase: SupabaseClient<Database>,
+  query: CatalogEventListQuery,
+) => {
+  const { data, error } = await supabase
+    .from('catalog_events')
+    .select('id, starts_at, status, catalog_competitions!catalog_events_competition_id_fkey(id, name, sport, normalization_status), catalog_teams!catalog_events_home_team_id_fkey(id, name, normalization_status), catalog_teams_away:catalog_teams!catalog_events_away_team_id_fkey(id, name, normalization_status)')
+    .in('status', ['scheduled', 'live'])
+    .order('starts_at', { ascending: true })
+    .order('id', { ascending: true })
+    .range(query.offset, query.offset + query.limit);
+
+  if (error) {
+    throw new CatalogServiceError('INTERNAL_ERROR', error.code);
+  }
+
+  const rows = (data ?? []) as unknown as CatalogEventRow[];
+  const normalizedEvents = rows.flatMap((row) => {
+    const competition = row.catalog_competitions;
+    const homeTeam = row.catalog_teams;
+    const awayTeam = row.catalog_teams_away;
+    const sport = competition?.sport?.trim();
+    if (
+      !competition
+      || !homeTeam
+      || !awayTeam
+      || competition.normalization_status !== 'normalized'
+      || homeTeam.normalization_status !== 'normalized'
+      || awayTeam.normalization_status !== 'normalized'
+      || !sport
+    ) {
+      return [];
+    }
+
+    const event = {
+      id: row.id,
+      name: `${homeTeam.name} vs. ${awayTeam.name}`,
+      startsAt: row.starts_at,
+      status: row.status,
+      sport,
+      competition: { id: competition.id, name: competition.name },
+      homeTeam: { id: homeTeam.id, name: homeTeam.name },
+      awayTeam: { id: awayTeam.id, name: awayTeam.name },
+    };
+    const searchable = `${event.name} ${event.competition.name} ${event.sport}`.toLowerCase();
+    return !query.q || searchable.includes(query.q.toLowerCase()) ? [event] : [];
+  });
+
+  return parseRpcResponse(CatalogEventListResponseSchema, {
+    success: true,
+    events: normalizedEvents.slice(0, query.limit),
+    nextOffset: rows.length > query.limit && query.offset + query.limit <= 10000
+      ? query.offset + query.limit
+      : null,
+  });
+};
+
+export const listActiveCatalogMarkets = async (
+  supabase: SupabaseClient<Database>,
+  eventId: string,
+) => {
+  const { data, error } = await supabase
+    .from('catalog_markets')
+    .select('id, event_id, name')
+    .eq('event_id', eventId)
+    .eq('status', 'active')
+    .order('normalized_name', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) {
+    throw new CatalogServiceError('INTERNAL_ERROR', error.code);
+  }
+
+  return parseRpcResponse(CatalogMarketListResponseSchema, {
+    success: true,
+    markets: (data ?? []).map(market => ({
+      id: market.id,
+      eventId: market.event_id,
+      name: market.name,
+    })),
+  });
 };
 
 export const createManualCatalogItem = async (

@@ -8,6 +8,8 @@ describe('catalog OpenAPI runtime', () => {
     const catalogPaths = [
       '/catalog/teams',
       '/catalog/competitions',
+      '/catalog/events',
+      '/catalog/events/{eventId}/markets',
       '/catalog/manual',
       '/admin/catalog/teams',
       '/admin/catalog/teams/{teamId}',
@@ -26,6 +28,8 @@ describe('catalog OpenAPI runtime', () => {
     const schemas = generateOpenAPIDocument().components?.schemas;
 
     expect(schemas?.CatalogListResponse).toBeDefined();
+    expect(schemas?.CatalogEventListResponse).toBeDefined();
+    expect(schemas?.CatalogMarketListResponse).toBeDefined();
     expect(schemas?.CatalogItemResponse).toBeDefined();
     expect(schemas?.CatalogAdminListResponse).toBeDefined();
     expect(schemas?.CatalogAdminMutationResponse).toBeDefined();
