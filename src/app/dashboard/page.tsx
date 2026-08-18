@@ -1,5 +1,5 @@
-import { BanksList } from '@/components/banks/banks-list';
+import { DashboardOverview } from '@/components/dashboard/dashboard-overview';
 
 export default function DashboardPage() {
-  return <BanksList />;
+  return <DashboardOverview />;
 }

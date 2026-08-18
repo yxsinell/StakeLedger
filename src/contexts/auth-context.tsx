@@ -1,7 +1,7 @@
 'use client';
 
 import type { UserProfile } from '@/lib/types';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 type AuthResult
   = | {
@@ -19,7 +19,9 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthResult>
   signup: (email: string, password: string) => Promise<AuthResult>
   resetPassword: (email: string) => Promise<AuthResult>
+  updatePassword: (password: string) => Promise<AuthResult>
   logout: () => Promise<void>
+  profileLoading: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -27,19 +29,41 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const profileRequestId = useRef(0);
 
   const loadProfile = useCallback(
     async () => {
-      const response = await fetch('/api/auth/profile', { credentials: 'same-origin' });
-      const payload = await response.json().catch(() => null) as { profile?: UserProfile } | null;
+      const requestId = ++profileRequestId.current;
+      setProfileLoading(true);
 
-      if (!response.ok || !payload?.profile) {
-        setProfile(null);
+      try {
+        const response = await fetch('/api/auth/profile', { credentials: 'same-origin' });
+        const payload = await response.json().catch(() => null) as { profile?: UserProfile } | null;
+
+        if (!response.ok || !payload?.profile) {
+          if (requestId === profileRequestId.current) {
+            setProfile(null);
+          }
+          return false;
+        }
+
+        if (requestId === profileRequestId.current) {
+          setProfile(payload.profile);
+        }
+        return true;
+      }
+      catch {
+        if (requestId === profileRequestId.current) {
+          setProfile(null);
+        }
         return false;
       }
-
-      setProfile(payload.profile);
-      return true;
+      finally {
+        if (requestId === profileRequestId.current) {
+          setProfileLoading(false);
+        }
+      }
     },
     [],
   );
@@ -93,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, message };
         }
 
-        void loadProfile();
+        await loadProfile();
         return { ok: true };
       }
       finally {
@@ -160,6 +184,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [requestAuth],
   );
 
+  const updatePassword = useCallback(
+    async (password: string): Promise<AuthResult> => {
+      setLoading(true);
+
+      try {
+        const result = await requestAuth('/api/auth/update-password', { password });
+
+        if (!result.ok) {
+          return {
+            ok: false,
+            message: 'El enlace no es válido o ha expirado. Solicita uno nuevo.',
+          };
+        }
+
+        return { ok: true, message: 'Contraseña actualizada. Ya puedes iniciar sesión.' };
+      }
+      finally {
+        setLoading(false);
+      }
+    },
+    [requestAuth],
+  );
+
   const logout = useCallback(async () => {
     setLoading(true);
 
@@ -183,7 +230,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     signup,
     resetPassword,
+    updatePassword,
     logout,
+    profileLoading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 
-import { errorResponse, serverError, successResponse, validationError } from '@/lib/api/responses';
+import { errorResponse, successResponse, validationError } from '@/lib/api/responses';
 import { createAuthRouteClient } from '@/lib/auth/session';
 import { ResetPasswordRequestSchema } from '@/lib/openapi/schemas/auth';
 
@@ -23,11 +23,9 @@ export async function POST(request: NextRequest) {
     message: 'If an account exists, a password reset email has been sent.',
   });
   const supabase = createAuthRouteClient(request, response);
-  const { error } = await supabase.auth.resetPasswordForEmail(validation.data.email);
-
-  if (error) {
-    return serverError('Unable to process password reset request');
-  }
+  await supabase.auth.resetPasswordForEmail(validation.data.email, {
+    redirectTo: new URL('/auth/callback', request.nextUrl.origin).toString(),
+  });
 
   return response;
 }

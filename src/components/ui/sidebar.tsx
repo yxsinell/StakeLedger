@@ -55,6 +55,21 @@ function SidebarProvider({ children, defaultOpen = true }: SidebarProviderProps)
     }
   }, [isMobile]);
 
+  React.useEffect(() => {
+    if (!isMobile || !open) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMobile, open]);
+
   const value = React.useMemo<SidebarContextValue>(() => {
     const state = open ? 'expanded' : 'collapsed';
     return {
@@ -79,26 +94,39 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
   ({ className, collapsible = 'icon', ...props }, ref) => {
-    const { state, isMobile, open } = useSidebar();
+    const { state, isMobile, open, setOpen } = useSidebar();
     const isCollapsed = state === 'collapsed' && collapsible === 'icon';
 
     return (
-      <aside
-        ref={ref}
-        data-state={state}
-        data-collapsible={collapsible}
-        className={cn(
-          'relative flex h-svh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
-          isMobile
-            ? 'fixed inset-y-0 left-0 z-50 w-72'
-            : isCollapsed
-              ? 'w-20'
-              : 'w-72',
-          isMobile && !open ? '-translate-x-full' : 'translate-x-0',
-          className,
-        )}
-        {...props}
-      />
+      <>
+        {isMobile && open
+          ? (
+              <button
+                aria-label="Cerrar menú lateral"
+                className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm"
+                data-testid="sidebar_overlay"
+                onClick={() => setOpen(false)}
+                type="button"
+              />
+            )
+          : null}
+        <aside
+          ref={ref}
+          data-state={state}
+          data-collapsible={collapsible}
+          className={cn(
+            'relative flex h-svh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
+            isMobile
+              ? 'fixed inset-y-0 left-0 z-50 w-72'
+              : isCollapsed
+                ? 'w-20'
+                : 'w-72',
+            isMobile && !open ? '-translate-x-full' : 'translate-x-0',
+            className,
+          )}
+          {...props}
+        />
+      </>
     );
   },
 );

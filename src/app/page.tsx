@@ -5,20 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const highlights = [
   {
     title: 'Ledger multi-bank',
-    description: 'Tres bolsillos cash, bonus y freebet con auditoria completa.',
+    description: 'Bolsillos cash, bonus y freebet con auditoría completa.',
   },
   {
     title: 'Stake disciplinado',
-    description: 'Calculo 0-20 con cap 40% sobre cash disponible.',
+    description: 'Límites de riesgo configurables sobre cash disponible.',
   },
   {
-    title: 'Catalogo normalizado',
-    description: 'Autocompletado deportivo y fallback manual marcado.',
+    title: 'Catálogo normalizado',
+    description: 'Autocompletado deportivo y entrada manual explícita.',
   },
 ];
 
@@ -45,7 +44,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" data-testid="login_link">
-              <Link href="/login">Iniciar sesion</Link>
+              <Link href="/login">Iniciar sesión</Link>
             </Button>
             <Button asChild data-testid="signup_link">
               <Link href="/signup">Crear cuenta</Link>
@@ -57,12 +56,11 @@ export default function HomePage() {
           <div className="space-y-6">
             <Badge variant="secondary">Control de bank</Badge>
             <h1 className="text-4xl font-semibold md:text-5xl">
-              Gestiona tu bank con datos reales y protecciones de riesgo
+              Gestiona tu bank con trazabilidad y protecciones de riesgo
             </h1>
             <p className="text-base text-muted-foreground">
-              StakeLedger centraliza cash, bonus y freebet con trazabilidad
-              completa. Registra tickets, metas y recomendaciones sin perder
-              el contexto de rendimiento.
+              Centraliza movimientos, tickets y metas. Mantén contexto sobre tu
+              operativa sin convertir previsiones en resultados.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild data-testid="primary_cta">
@@ -75,25 +73,25 @@ export default function HomePage() {
           </div>
           <Card className="surface-grid">
             <CardHeader>
-              <CardTitle>KPIs del MVP</CardTitle>
+              <CardTitle>Empieza con tu operativa</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-2xl border border-border bg-background/70 p-4">
-                <p className="text-sm font-semibold">200 usuarios activos</p>
+                <p className="text-sm font-semibold">Crea tu primer bank</p>
                 <p className="text-xs text-muted-foreground">
-                  Meta en 60 dias con 3 tickets registrados.
+                  Define moneda y bolsillos para separar tu saldo operativo.
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-background/70 p-4">
-                <p className="text-sm font-semibold">40% WAU/MAU</p>
+                <p className="text-sm font-semibold">Registra movimientos</p>
                 <p className="text-xs text-muted-foreground">
-                  Retencion semanal en el primer trimestre.
+                  Conserva historial trazable de depósitos, retiradas y tickets.
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-background/70 p-4">
-                <p className="text-sm font-semibold">20% con metas activas</p>
+                <p className="text-sm font-semibold">Revisa tus límites</p>
                 <p className="text-xs text-muted-foreground">
-                  Uso minimo de 5 dias por meta.
+                  Configura protecciones de riesgo antes de registrar apuestas.
                 </p>
               </div>
             </CardContent>
@@ -118,20 +116,20 @@ export default function HomePage() {
         <section className="grid gap-4 lg:grid-cols-4" data-testid="modulesSection">
           {[
             {
-              title: 'Banks & balances',
+              title: 'Banks y saldos',
               description: 'Saldos por bolsillo y transferencias internas.',
             },
             {
-              title: 'Bets ledger',
-              description: 'Tickets con legs, cashout parcial y auditoria.',
+              title: 'Ledger de tickets',
+              description: 'Tickets, cashout parcial y auditoría.',
             },
             {
-              title: 'Goals advisor',
-              description: 'Metas con mision diaria y recalculo automatico.',
+              title: 'Metas y riesgo',
+              description: 'Metas con misión diaria y recálculo automático.',
             },
             {
-              title: 'Feed & insights',
-              description: 'Recomendaciones filtrables con adhesion rapida.',
+              title: 'Feed y métricas',
+              description: 'Recomendaciones filtrables y métricas trazables.',
             },
           ].map(item => (
             <Card key={item.title}>
@@ -149,12 +147,12 @@ export default function HomePage() {
         <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]" data-testid="flowSection">
           <Card className="surface-grid">
             <CardHeader>
-              <CardTitle>Flujo operativo en 4 pasos</CardTitle>
+              <CardTitle>Flujo operativo en cuatro pasos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                'Crear bank con bolsillos y riesgo',
-                'Registrar ticket con stake sugerido',
+                'Crear un bank con bolsillos y riesgo',
+                'Registrar un ticket con stake sugerido',
                 'Liquidar ticket y ajustar ledger',
                 'Recalcular metas con protecciones',
               ].map((step, index) => (
@@ -174,42 +172,39 @@ export default function HomePage() {
           <div className="grid gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Layout moderno y flexible</CardTitle>
+                <CardTitle>Acceso a tu espacio de trabajo</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Sidebar collapsible, encabezados dinamicos y tarjetas en grid.
+                  Consulta tu dashboard, banks, tickets, metas y métricas desde un mismo lugar.
                 </p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl border border-border bg-background/70 p-4">
-                    <p className="text-xs font-semibold">Dashboard compacto</p>
-                    <Skeleton className="mt-3 h-2 w-full" />
-                    <Skeleton className="mt-2 h-2 w-2/3" />
+                    <p className="text-xs font-semibold">Dashboard</p>
+                    <p className="mt-3 text-xs text-muted-foreground">Consulta tus banks y saldos.</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/70 p-4">
                     <p className="text-xs font-semibold">Panel de riesgo</p>
-                    <Skeleton className="mt-3 h-2 w-full" />
-                    <Skeleton className="mt-2 h-2 w-1/2" />
+                    <p className="mt-3 text-xs text-muted-foreground">Configura límites para tu operativa.</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" data-testid="layout_cta_secondary">
-                    Ver layout
+                  <Button asChild variant="secondary" data-testid="layout_cta_secondary">
+                    <Link href="/dashboard">Ir al dashboard</Link>
                   </Button>
-                  <Button variant="outline" data-testid="layout_cta_outline">
-                    Explorar modulos
+                  <Button asChild variant="outline" data-testid="layout_cta_outline">
+                    <Link href="/signup">Crear cuenta</Link>
                   </Button>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Psicologia de color aplicada</CardTitle>
+                <CardTitle>Decisiones con contexto</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Azul para confianza, verde para crecimiento y teal para control
-                  tecnico. Todo alineado al logotipo.
+                  Registra resultados y revisa tu historial antes de ajustar tu estrategia.
                 </p>
               </CardContent>
             </Card>

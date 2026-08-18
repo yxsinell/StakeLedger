@@ -72,9 +72,14 @@ const navItems = [
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const { state } = useSidebar();
-  const { profile } = useAuth();
+  const { state, isMobile, setOpen } = useSidebar();
+  const { profile, profileLoading } = useAuth();
   const initials = profile?.email ? profile.email.slice(0, 2).toUpperCase() : 'SL';
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" data-testid="appSidebar" {...props}>
@@ -111,27 +116,33 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu data-testid="primary_nav">
-              {navItems.map((item) => {
-                const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.title}
-                      data-testid={item.testId}
-                    >
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span className={state === 'collapsed' ? 'sr-only' : ''}>
-                          {item.title}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-              {(profile?.role === 'admin' || profile?.role === 'editor') && (
+              {profileLoading
+                ? (
+                    <li className="px-3 py-2 text-sm text-sidebar-foreground/60" data-testid="sidebar_loading">
+                      Cargando navegación...
+                    </li>
+                  )
+                : navItems.map((item) => {
+                    const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`);
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.title}
+                          data-testid={item.testId}
+                        >
+                          <Link href={item.url} onClick={closeMobileSidebar}>
+                            <item.icon className="h-4 w-4" />
+                            <span className={state === 'collapsed' ? 'sr-only' : ''}>
+                              {item.title}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+              {!profileLoading && (profile?.role === 'admin' || profile?.role === 'editor') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -139,14 +150,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     tooltip="Gestionar recomendaciones"
                     data-testid="admin_recommendations_nav"
                   >
-                    <Link href="/dashboard/admin/recommendations">
+                    <Link href="/dashboard/admin/recommendations" onClick={closeMobileSidebar}>
                       <Sparkles className="h-4 w-4" />
                       <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar recomendaciones</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {(profile?.role === 'admin' || profile?.role === 'editor') && (
+              {!profileLoading && (profile?.role === 'admin' || profile?.role === 'editor') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -154,17 +165,17 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     tooltip="Gestionar catálogo"
                     data-testid="admin_catalog_nav"
                   >
-                    <Link href="/dashboard/admin/catalog">
+                    <Link href="/dashboard/admin/catalog" onClick={closeMobileSidebar}>
                       <Settings2 className="h-4 w-4" />
                       <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar catálogo</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {profile?.role === 'admin' && (
+              {!profileLoading && profile?.role === 'admin' && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === '/dashboard/admin/users'} tooltip="Gestionar usuarios" data-testid="admin_users_nav">
-                    <Link href="/dashboard/admin/users">
+                    <Link href="/dashboard/admin/users" onClick={closeMobileSidebar}>
                       <Users className="h-4 w-4" />
                       <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar usuarios</span>
                     </Link>
@@ -182,10 +193,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div className={cn('flex-1', state === 'collapsed' ? 'sr-only' : '')}>
-            <p className="text-sm font-semibold">Sesion activa</p>
+            <p className="text-sm font-semibold">Sesión activa</p>
             <p className="text-xs text-sidebar-foreground/60">
-              <span aria-hidden className="min-w-24"></span>
-              <span className="sr-only">Usuario</span>
+              {profileLoading ? 'Cargando perfil...' : profile?.email ?? 'Sesión no disponible'}
             </p>
           </div>
           <div className={state === 'collapsed' ? 'sr-only' : ''}>
