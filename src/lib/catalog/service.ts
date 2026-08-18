@@ -187,6 +187,20 @@ export const listActiveCatalogMarkets = async (
   supabase: SupabaseClient<Database>,
   eventId: string,
 ) => {
+  const { data: event, error: eventError } = await supabase
+    .from('catalog_events')
+    .select('id')
+    .eq('id', eventId)
+    .in('status', ['scheduled', 'live'])
+    .maybeSingle();
+
+  if (eventError) {
+    throw new CatalogServiceError('INTERNAL_ERROR', eventError.code);
+  }
+  if (!event) {
+    throw new CatalogServiceError('CATALOG_ITEM_NOT_FOUND');
+  }
+
   const { data, error } = await supabase
     .from('catalog_markets')
     .select('id, event_id, name')

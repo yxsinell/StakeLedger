@@ -44,8 +44,19 @@ const clientWithEvents = (data: unknown) => ({
   },
 }) as unknown as SupabaseClient<Database>;
 
-const clientWithMarkets = (data: unknown) => ({
+const clientWithMarkets = (data: unknown, event: { id: string } | null = { id: eventId }) => ({
   from: (table: string) => {
+    if (table === 'catalog_events') {
+      return {
+        select: () => ({
+          eq: () => ({
+            in: () => ({
+              maybeSingle: async () => ({ data: event, error: null }),
+            }),
+          }),
+        }),
+      };
+    }
     expect(table).toBe('catalog_markets');
     return {
       select: () => ({
@@ -103,6 +114,12 @@ describe('catalog RPC services', () => {
     ]), eventId);
 
     expect(result.markets).toEqual([{ id: marketId, eventId, name: 'Match winner' }]);
+  });
+
+  test('rejects markets lookup for a missing event', async () => {
+    expect(listActiveCatalogMarkets(clientWithMarkets([], null), eventId)).rejects.toMatchObject({
+      code: 'CATALOG_ITEM_NOT_FOUND',
+    });
   });
 
   test('uses the extra row only to determine the next event page', async () => {

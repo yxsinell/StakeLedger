@@ -500,6 +500,51 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
 
+  /api/catalog/events:
+    get:
+      summary: List searchable normalized scheduled or live events
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: {type: string, minLength: 2, maxLength: 100}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 50, default: 25}
+        - in: query
+          name: offset
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+      responses:
+        '200':
+          description: Normalized catalog events
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CatalogEventListResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/ServerError'}
+
+  /api/catalog/events/{eventId}/markets:
+    get:
+      summary: List active markets for a normalized event
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Active catalog markets
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CatalogMarketListResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/ServerError'}
+
   /api/catalog/manual:
     post:
       summary: Create manual catalog entry
@@ -1666,6 +1711,58 @@ components:
           type: integer
           nullable: true
       required: [success, items, nextOffset]
+
+    CatalogEventParticipant:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+      required: [id, name]
+
+    CatalogEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        startsAt: {type: string}
+        status: {type: string, enum: [scheduled, live]}
+        sport: {type: string}
+        competition: {$ref: '#/components/schemas/CatalogEventParticipant'}
+        homeTeam: {$ref: '#/components/schemas/CatalogEventParticipant'}
+        awayTeam: {$ref: '#/components/schemas/CatalogEventParticipant'}
+      required: [id, name, startsAt, status, sport, competition, homeTeam, awayTeam]
+
+    CatalogEventListResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        success: {type: boolean, enum: [true]}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/CatalogEvent'}
+        nextOffset: {type: integer, minimum: 0, nullable: true}
+      required: [success, events, nextOffset]
+
+    CatalogMarket:
+      type: object
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        eventId: {type: string, format: uuid}
+        name: {type: string}
+      required: [id, eventId, name]
+
+    CatalogMarketListResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        success: {type: boolean, enum: [true]}
+        markets:
+          type: array
+          items: {$ref: '#/components/schemas/CatalogMarket'}
+      required: [success, markets]
 
     CatalogTeamAdminRequest:
       type: object
