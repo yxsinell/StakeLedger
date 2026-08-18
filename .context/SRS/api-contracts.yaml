@@ -6,10 +6,6 @@ info:
 servers:
   - url: http://localhost:3000
     description: Development
-  - url: https://staging.example.com
-    description: Staging
-  - url: https://api.example.com
-    description: Production
 
 paths:
   /api/admin/users:
