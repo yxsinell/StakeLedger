@@ -1,6 +1,6 @@
 # Development Roadmap
 
-> Actualizado: 2026-08-17. Fuente de reglas: `.context/business-data-map.md`.
+> Actualizado: 2026-08-18. Fuente de reglas: `.context/business-data-map.md`.
 
 ## Baseline verificado
 
@@ -15,6 +15,7 @@
 | Transferencias | Implementadas: doble asiento cash atómico, idempotencia y BFF. |
 | Metas y riesgo | Fase 4I implementada y verificada local/remotamente. |
 | Recomendaciones y métricas | Fase 4J implementada y verificada: migrations sincronizadas, tipos regenerados y journey Playwright específico PASS. |
+| Release candidate | Fase 6 `PASS WITH RISKS`: 92 unit tests, 9 E2E, build/lint/typecheck, Trifuerza y cleanup dirigido pasan. Riesgos externos en `.context/reports/phase-6-release-candidate.md`. |
 
 ## Orden de entrega
 
@@ -46,7 +47,7 @@
 - Activar manualmente leaked password protection antes del siguiente despliegue de auth.
 - No revocar `SELECT authenticated` ni `EXECUTE` de RPCs sin rediseñar BFF: las rutas actuales usan cliente Supabase autenticado.
 - Tratar avisos de índices como trabajo de rendimiento posterior, no como bloqueo de movimientos.
-- Suite E2E completa acreditada: `phase4i.e2e.ts` y `phase4j.e2e.ts` pasan 2/2 en 53.3 s.
+- Suite E2E completa acreditada: 9/9 en Fases 4I, 4J, 5 y 6; incluye auth/deep links/mobile, 4G mix/concurrencia/cross-owner y 4J cursor/RBAC/prefill/rangos.
 
 ## Paquete de implementación
 

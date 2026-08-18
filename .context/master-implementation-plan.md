@@ -1,6 +1,6 @@
 # Master Implementation Plan
 
-> Actualizado: 2026-08-17. Este plan parte del estado verificable, no de la planificación histórica.
+> Actualizado: 2026-08-18. Este plan parte del estado verificable, no de la planificación histórica.
 
 ## Guardrails
 
@@ -18,12 +18,12 @@
 | Banks | RPC atómica, APIs, UI y saldo operativo implementados. |
 | DB/RLS | 36 migrations locales y remotas sincronizadas hasta `20260817201754_include_incomplete_settled_metrics`; operaciones sensibles solo mediante RPC con ownership e idempotencia. |
 | API | Transferencias, tickets, settlement, catálogo, metas, recomendaciones y métricas implementados mediante BFF/RPC. |
-| Seguridad | Leaked password protection desactivada; GraphQL y SECURITY DEFINER documentados como postura pendiente. |
+| Seguridad | Sesiones protegidas validadas server-side y refresh cookies persistido. Leaked password protection sigue desactivada; GraphQL y SECURITY DEFINER documentados como postura aceptada temporalmente. |
 
 ## Estado de fase exacto
 
-1. SL-9 implementado sobre el ledger validado: RPC atómica, idempotencia, BFF, UI y documentación. Pendiente cobertura de integración/E2E cuando exista infraestructura de pruebas adecuada.
-2. SL-12/SL-13 implementados: RPC atómica, funding por pocket, idempotencia, BFF, UI y documentación. Pendientes E2E manual, concurrencia multisesión y normalized end-to-end cuando exista catálogo de aplicación.
+1. SL-9 implementado sobre ledger validado: RPC atómica, idempotencia, BFF, UI y E2E de transferencia con doble asiento visible.
+2. SL-12/SL-13 implementados y cubiertos en Fase 6: funding mixto, reservas enlazadas, idempotencia, ownership, normalized UI y carreras viables de clave/saldo.
 
 SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloquea escritura de catálogo y recomendaciones por editor/admin.
 
@@ -42,7 +42,7 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 | --- | --- | --- |
 | RBAC | Implementado local/remoto | Administración de roles y permisos de editor/admin. |
 | Catálogo | Implementado local/remoto | Catálogo local, entrada manual y alias. |
-| Bets | Implementado Fase 4G; validación manual pendiente | Tickets, financiación y reservas. |
+| Bets | Implementado y verificado Fase 6 | Tickets, financiación, reservas, idempotencia, ownership y concurrencia. |
 | Settlement | Implementado Fase 4H | Retornos por pocket, cashout cash-only y auditoría append-only. |
 | Goals | Implementado local/remoto Fase 4I | Metas, riesgo y recálculo atómico verificados. |
 | Recommendations | Implementado local/remoto Fase 4J | Lifecycle editorial, feed published-only y prefill sin creación implícita de ticket. |
@@ -89,3 +89,11 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 - Migrations Fase 4J aplicadas y reconciliadas hasta `20260817201754_include_incomplete_settled_metrics`; total local/remoto: 36. Tipos Supabase regenerados.
 - Evidencia: 84 unit tests/222 assertions PASS, `bun run repo:check` PASS, `git diff --check` PASS, SQL rollback y seguridad PASS, suite Playwright 4I/4J PASS 2/2 en 53.3 s y residuo 4J cero.
 - Suite E2E completa acreditada: Fases 4I y 4J pasan 2/2. Los ATP manuales completos no se ejecutaron uno a uno.
+
+## Fase 6 release candidate
+
+- Veredicto: `PASS WITH RISKS`; evidencia completa en `.context/reports/phase-6-release-candidate.md`.
+- Checks: 92 unit tests, 9 Playwright E2E, frozen install, lint, production build, typecheck y diff check pasan.
+- Trifuerza: UI, BFF/API y DB/RLS cubren flujos MVP; lifecycle SL-28 y follow real SL-30 se ejecutaron dirigidos con cleanup administrativo y residuo cero.
+- Dependabot: 8 alerts abiertas comparten fix Next.js 15.5.21; parche aplicado localmente, pendiente push/reescaneo.
+- Bloqueos externos antes de producción: activar leaked-password protection y verificar Redirect URL `/auth/callback` en Supabase Dashboard.
