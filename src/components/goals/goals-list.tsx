@@ -15,21 +15,33 @@ export function GoalsList() {
   const [maxDailyLoss, setMaxDailyLoss] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let active = true;
-    void Promise.all([fetch('/api/goals'), fetch('/api/risk-limits')]).then(async ([goalsResponse, riskResponse]) => {
+  const loadGoals = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [goalsResponse, riskResponse] = await Promise.all([fetch('/api/goals'), fetch('/api/risk-limits')]);
       const [goalsPayload, riskPayload]: unknown[] = await Promise.all([goalsResponse.json(), riskResponse.json()]);
       const parsedGoals = GoalListResponseSchema.safeParse(goalsPayload);
       const parsedRisk = RiskLimitsResponseSchema.safeParse(riskPayload);
-      if (!goalsResponse.ok || !riskResponse.ok || !parsedGoals.success || !parsedRisk.success) { throw new Error('No se pudieron cargar metas y límites.'); }
-      if (active) {
-        setGoals(parsedGoals.data.goals);
-        setMaxOdds(parsedRisk.data.riskLimits.maxOdds?.toString() ?? '');
-        setMaxDailyLoss(parsedRisk.data.riskLimits.maxDailyLoss?.toString() ?? '');
+      if (!goalsResponse.ok || !riskResponse.ok || !parsedGoals.success || !parsedRisk.success) {
+        throw new Error('No se pudieron cargar metas y límites.');
       }
-    }).catch((caught: unknown) => { if (active) { setError(caught instanceof Error ? caught.message : 'No se pudieron cargar las metas.'); } });
-    return () => { active = false; };
+      setGoals(parsedGoals.data.goals);
+      setMaxOdds(parsedRisk.data.riskLimits.maxOdds?.toString() ?? '');
+      setMaxDailyLoss(parsedRisk.data.riskLimits.maxDailyLoss?.toString() ?? '');
+    }
+    catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : 'No se pudieron cargar las metas.');
+    }
+    finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadGoals();
   }, []);
 
   const saveRisk = async (event: React.FormEvent) => {
@@ -48,7 +60,7 @@ export function GoalsList() {
   };
 
   return (
-    <main className="space-y-6" data-testid="goalsList">
+    <main className="space-y-6" aria-busy={loading} data-testid="goalsList">
       <header className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Plan de crecimiento</p>
@@ -56,9 +68,17 @@ export function GoalsList() {
         </div>
         <Button asChild data-testid="new_goal_link"><Link href="/dashboard/goals/new">Nueva meta</Link></Button>
       </header>
-      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      {error
+        ? (
+            <div className="flex flex-wrap items-center gap-3" role="alert" data-testid="goals_load_error">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button type="button" variant="outline" data-testid="retry_goals_button" onClick={() => void loadGoals()}>Reintentar</Button>
+            </div>
+          )
+        : null}
       <section className="grid gap-4 md:grid-cols-2">
-        {goals.map(goal => (
+        {loading ? <p className="text-sm text-muted-foreground" role="status" data-testid="goals_loading">Cargando metas...</p> : null}
+        {!loading && goals.map(goal => (
           <Card key={goal.id} data-testid="goalCard">
             <CardHeader>
               <CardTitle>{goal.bank.name}</CardTitle>
@@ -82,9 +102,9 @@ export function GoalsList() {
             </CardContent>
           </Card>
         ))}
-        {goals.length === 0
+        {!loading && goals.length === 0
           ? (
-              <Card>
+              <Card data-testid="goals_empty_state">
                 <CardHeader>
                   <CardTitle>Sin metas</CardTitle>
                   <CardDescription>Crea una meta para convertir tu objetivo en una misión diaria.</CardDescription>

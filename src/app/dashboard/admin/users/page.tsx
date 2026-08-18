@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/auth-context';
 
 interface ManagedUser { id: string, email: string, role: 'admin' | 'editor' | 'user', role_version: number }
 
@@ -13,38 +14,79 @@ const roleLabel = { admin: 'Administrador', editor: 'Editor', user: 'Usuario' };
 const roleVariant = { admin: 'default', editor: 'secondary', user: 'outline' } as const;
 
 export default function AdminUsersPage() {
+  const { profile, profileLoading } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
 
   const loadUsers = async (nextPageOffset = 0) => {
+    setLoading(true);
     setError('');
-    const response = await fetch(`/api/admin/users?offset=${nextPageOffset}`);
-    const payload = await response.json();
-    if (!response.ok) { setError(payload.error ?? 'No se ha podido cargar usuarios.'); return; }
-    setUsers(payload.users);
-    setOffset(nextPageOffset);
-    setNextOffset(payload.nextOffset);
+    try {
+      const response = await fetch(`/api/admin/users?offset=${nextPageOffset}`);
+      const payload = await response.json().catch(() => null) as { error?: string, users?: ManagedUser[], nextOffset?: number | null } | null;
+      if (!response.ok || !payload?.users) {
+        setError(payload?.error ?? 'No se ha podido cargar usuarios.');
+        return;
+      }
+      setUsers(payload.users);
+      setOffset(nextPageOffset);
+      setNextOffset(payload.nextOffset ?? null);
+    }
+    catch {
+      setError('No se ha podido conectar con usuarios.');
+    }
+    finally {
+      setLoading(false);
+    }
   };
 
   const updateRole = async (user: ManagedUser, role: ManagedUser['role']) => {
     setPendingId(user.id);
     setError('');
-    const response = await fetch(`/api/admin/users/${user.id}/role`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, expectedRoleVersion: user.role_version }) });
-    const payload = await response.json();
-    if (!response.ok) { setError(payload.error ?? 'No se ha podido actualizar el rol.'); }
-    else { setUsers(current => current.map(item => item.id === user.id ? payload.user : item)); }
-    setPendingId(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/role`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, expectedRoleVersion: user.role_version }) });
+      const payload = await response.json().catch(() => null) as { error?: string, user?: ManagedUser } | null;
+      if (!response.ok || !payload?.user) { setError(payload?.error ?? 'No se ha podido actualizar el rol.'); }
+      else {
+        const updatedUser = payload.user;
+        setUsers(current => current.map(item => item.id === user.id ? updatedUser : item));
+      }
+    }
+    catch {
+      setError('No se ha podido conectar para actualizar el rol.');
+    }
+    finally {
+      setPendingId(null);
+    }
   };
 
-  useEffect(() => { void loadUsers(); }, []);
+  useEffect(() => {
+    if (profile?.role === 'admin') { void loadUsers(); }
+  }, [profile?.role]);
 
   const adminCount = users.filter(user => user.role === 'admin').length;
 
+  if (profileLoading) {
+    return <main className="mx-auto w-full max-w-3xl" aria-busy="true" data-testid="adminUsersPage"><p role="status" data-testid="admin_users_auth_loading">Comprobando permisos...</p></main>;
+  }
+
+  if (profile?.role !== 'admin') {
+    return (
+      <main className="mx-auto w-full max-w-3xl" data-testid="adminUsersPage">
+        <Card data-testid="admin_users_restricted_state">
+          <CardHeader><CardTitle>Acceso restringido</CardTitle></CardHeader>
+          <CardContent><p className="text-sm text-muted-foreground">Necesitas rol de administrador para gestionar usuarios.</p></CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6" data-testid="adminUsersPage">
+    <main className="mx-auto w-full max-w-5xl space-y-6" aria-busy={loading || pendingId !== null} data-testid="adminUsersPage">
       <section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <Badge variant="secondary">Administración</Badge>
@@ -59,7 +101,14 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </section>
-      {error ? <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" data-testid="role_change_error">{error}</p> : null}
+      {error
+        ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3" role="alert" data-testid="role_change_error">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button type="button" size="sm" variant="outline" data-testid="retry_admin_users_button" onClick={() => void loadUsers(offset)}>Reintentar</Button>
+            </div>
+          )
+        : null}
       <section className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex items-center gap-4 p-5">
@@ -93,7 +142,8 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map(user => (
+                {loading ? <tr><td className="px-3 py-4 text-muted-foreground" colSpan={3} role="status" data-testid="admin_users_loading">Cargando usuarios...</td></tr> : null}
+                {!loading && users.map(user => (
                   <tr className="border-b last:border-0" key={user.id}>
                     <td className="px-3 py-4 font-medium">{user.email}</td>
                     <td className="px-3 py-4"><Badge variant={roleVariant[user.role]}>{roleLabel[user.role]}</Badge></td>
@@ -106,6 +156,7 @@ export default function AdminUsersPage() {
                     </td>
                   </tr>
                 ))}
+                {!loading && users.length === 0 ? <tr data-testid="admin_users_empty_state"><td className="px-3 py-4 text-muted-foreground" colSpan={3}>No hay usuarios en esta página.</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -115,8 +166,8 @@ export default function AdminUsersPage() {
               {Math.floor(offset / 25) + 1}
             </p>
             <div className="flex gap-2">
-              <Button data-testid="previous_page_button" disabled={offset === 0} onClick={() => void loadUsers(Math.max(0, offset - 25))} size="sm" variant="outline">Anterior</Button>
-              <Button data-testid="next_page_button" disabled={nextOffset === null} onClick={() => void loadUsers(nextOffset ?? offset)} size="sm" variant="outline">Siguiente</Button>
+              <Button data-testid="previous_page_button" disabled={offset === 0 || loading} onClick={() => void loadUsers(Math.max(0, offset - 25))} size="sm" variant="outline">Anterior</Button>
+              <Button data-testid="next_page_button" disabled={nextOffset === null || loading} onClick={() => void loadUsers(nextOffset ?? offset)} size="sm" variant="outline">Siguiente</Button>
             </div>
           </div>
         </CardContent>

@@ -15,16 +15,28 @@ export function GoalDetail({ goalId }: { goalId: string }) {
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState<'completed' | 'cancelled'>('completed');
   const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let active = true;
-    void fetch(`/api/goals/${goalId}`).then(async (response) => {
+  const loadGoal = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/goals/${goalId}`);
       const payload: unknown = await response.json().catch(() => null);
       const parsed = GoalResponseSchema.safeParse(payload);
       if (!response.ok || !parsed.success) { throw new Error('No se pudo cargar la meta.'); }
-      if (active) { setGoal(parsed.data.goal); }
-    }).catch((caught: unknown) => { if (active) { setError(caught instanceof Error ? caught.message : 'No se pudo cargar la meta.'); } });
-    return () => { active = false; };
+      setGoal(parsed.data.goal);
+    }
+    catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : 'No se pudo cargar la meta.');
+    }
+    finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadGoal();
   }, [goalId]);
 
   const close = async () => {
@@ -43,10 +55,18 @@ export function GoalDetail({ goalId }: { goalId: string }) {
     setGoal(parsed.data.goal); setConfirming(false);
   };
 
-  if (error && !goal) { return <p role="alert" className="text-destructive">{error}</p>; }
-  if (!goal) { return <p>Cargando meta...</p>; }
+  if (loading) { return <main aria-busy="true" data-testid="goalDetail"><p role="status" data-testid="goal_detail_loading">Cargando meta...</p></main>; }
+  if (error && !goal) {
+    return (
+      <main className="space-y-3" data-testid="goalDetail">
+        <p role="alert" className="text-destructive" data-testid="goal_detail_load_error">{error}</p>
+        <Button type="button" variant="outline" data-testid="retry_goal_detail_button" onClick={() => void loadGoal()}>Reintentar</Button>
+      </main>
+    );
+  }
+  if (!goal) { return null; }
   return (
-    <main className="space-y-6" data-testid="goalDetail">
+    <main className="space-y-6" aria-busy={loading} data-testid="goalDetail">
       <header>
         <p className="text-sm text-muted-foreground">{goal.bank.name}</p>
         <h1 className="text-3xl font-semibold">
@@ -142,6 +162,7 @@ export function GoalDetail({ goalId }: { goalId: string }) {
               </li>
             ))}
           </ul>
+          {goal.history.length === 0 ? <p className="text-sm text-muted-foreground" data-testid="goal_history_empty_state">Aún no hay eventos en el historial.</p> : null}
         </CardContent>
       </Card>
       {goal.status === 'active' ? <GoalForm goal={goal} onUpdated={setGoal} /> : null}
