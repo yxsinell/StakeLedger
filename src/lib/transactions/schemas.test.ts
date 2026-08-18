@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { IdempotencyKeySchema, TransactionCreateRequestSchema } from './schemas';
+import {
+  decodeTransactionCursor,
+  encodeTransactionCursor,
+  IdempotencyKeySchema,
+  TransactionCreateRequestSchema,
+  TransactionListQuerySchema,
+} from './schemas';
 
 const validTransaction = {
   bankId: '550e8400-e29b-41d4-a716-446655440000',
@@ -26,5 +32,29 @@ describe('TransactionCreateRequestSchema', () => {
   test('accepts only UUID idempotency keys', () => {
     expect(IdempotencyKeySchema.safeParse('550e8400-e29b-41d4-a716-446655440000').success).toBe(true);
     expect(IdempotencyKeySchema.safeParse('retry-1').success).toBe(false);
+  });
+});
+
+describe('transaction history query', () => {
+  test('applies pagination defaults and validates the bank identifier', () => {
+    expect(TransactionListQuerySchema.parse({ bankId: validTransaction.bankId })).toEqual({
+      bankId: validTransaction.bankId,
+      limit: 20,
+    });
+    expect(TransactionListQuerySchema.safeParse({ bankId: 'invalid' }).success).toBe(false);
+    expect(TransactionListQuerySchema.safeParse({ bankId: validTransaction.bankId, limit: 101 }).success).toBe(false);
+  });
+
+  test('round-trips only canonical transaction cursors', () => {
+    const cursor = encodeTransactionCursor({
+      createdAt: '2026-08-18T10:30:00.000Z',
+      id: validTransaction.bankId,
+    });
+    expect(decodeTransactionCursor(cursor)).toEqual({
+      createdAt: '2026-08-18T10:30:00.000Z',
+      id: validTransaction.bankId,
+    });
+    expect(TransactionListQuerySchema.safeParse({ bankId: validTransaction.bankId, cursor }).success).toBe(true);
+    expect(TransactionListQuerySchema.safeParse({ bankId: validTransaction.bankId, cursor: 'invalid' }).success).toBe(false);
   });
 });

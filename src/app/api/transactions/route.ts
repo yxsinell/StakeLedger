@@ -7,8 +7,10 @@ import { createServerClient } from '@/lib/supabase/server';
 import {
   IdempotencyKeySchema,
   TransactionCreateRequestSchema,
+  TransactionListQuerySchema,
 } from '@/lib/transactions/schemas';
 import {
+  listTransactions,
   recordTransaction,
   TransactionsServiceError,
 } from '@/lib/transactions/service';
@@ -43,6 +45,35 @@ const mapTransactionError = (error: unknown) => {
 
   return serverError();
 };
+
+export async function GET(request: Request) {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return codedErrorResponse('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+  }
+
+  const query = TransactionListQuerySchema.safeParse(
+    Object.fromEntries(new URL(request.url).searchParams),
+  );
+
+  if (!query.success) {
+    const [firstError] = query.error.issues;
+    return codedErrorResponse(firstError.message, 'VALIDATION_ERROR', 400, firstError.path.join('.'));
+  }
+
+  try {
+    const result = await listTransactions(supabase, query.data);
+    return successResponse({ success: true, ...result });
+  }
+  catch (error) {
+    return mapTransactionError(error);
+  }
+}
 
 export async function POST(request: Request) {
   const supabase = await createServerClient();

@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoney } from '@/lib/banks/balance';
 import { BankResponseSchema } from '@/lib/banks/schemas';
 import { TransactionForm } from './transaction-form';
+import { TransactionHistory } from './transaction-history';
 import { TransferForm } from './transfer-form';
 
 export function BankDetail({ bankId }: { bankId: string }) {
@@ -23,6 +24,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isNotFound, setIsNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
     let isCurrent = true;
@@ -166,6 +168,7 @@ export function BankDetail({ bankId }: { bankId: string }) {
                 },
               }
             : current);
+          setHistoryRefreshKey(current => current + 1);
         }}
       />
       <TransferForm
@@ -184,7 +187,13 @@ export function BankDetail({ bankId }: { bankId: string }) {
                 },
               }
             : current);
+          setHistoryRefreshKey(current => current + 1);
         }}
+      />
+      <TransactionHistory
+        bankId={bank.id}
+        currency={bank.currency}
+        refreshKey={historyRefreshKey}
       />
     </main>
   );
