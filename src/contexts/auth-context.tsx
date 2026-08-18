@@ -1,10 +1,7 @@
 'use client';
 
-import type { Session, User } from '@supabase/supabase-js';
-
 import type { UserProfile } from '@/lib/types';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 type AuthResult
   = | {
@@ -17,8 +14,6 @@ type AuthResult
   };
 
 interface AuthContextValue {
-  session: Session | null
-  user: User | null
   profile: UserProfile | null
   loading: boolean
   login: (email: string, password: string) => Promise<AuthResult>
@@ -30,48 +25,24 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const supabase = useMemo(() => createClient(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
   const loadProfile = useCallback(
-    async (userId: string) => {
-      const { data, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+    async () => {
+      const response = await fetch('/api/auth/profile', { credentials: 'same-origin' });
+      const payload = await response.json().catch(() => null) as { profile?: UserProfile } | null;
 
-      if (profileError) {
+      if (!response.ok || !payload?.profile) {
         setProfile(null);
-        return;
+        return false;
       }
 
-      setProfile(data);
-    },
-    [supabase],
-  );
-
-  const syncSession = useCallback(async () => {
-    const { data, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      return false;
-    }
-
-    setSession(data.session);
-    setUser(data.session?.user ?? null);
-
-    if (data.session?.user) {
-      await loadProfile(data.session.user.id);
+      setProfile(payload.profile);
       return true;
-    }
-
-    setProfile(null);
-    return false;
-  }, [loadProfile, supabase]);
+    },
+    [],
+  );
 
   const requestAuth = useCallback(async (path: string, body: Record<string, string>) => {
     try {
@@ -104,35 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const init = async () => {
-      await syncSession();
-    };
-
-    void init();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        if (!isMounted) { return; }
-
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          await loadProfile(newSession.user.id);
-        }
-        else {
-          setProfile(null);
-        }
-      },
-    );
-
-    return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase, loadProfile, syncSession]);
+    void loadProfile();
+  }, [loadProfile]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
@@ -149,13 +93,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, message };
         }
 
+        void loadProfile();
         return { ok: true };
       }
       finally {
         setLoading(false);
       }
     },
-    [requestAuth],
+    [loadProfile, requestAuth],
   );
 
   const signup = useCallback(
@@ -175,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, message };
         }
 
-        if (await syncSession()) {
+        if (await loadProfile()) {
           return { ok: true };
         }
 
@@ -188,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    [requestAuth, syncSession],
+    [loadProfile, requestAuth],
   );
 
   const resetPassword = useCallback(
@@ -225,8 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setSession(null);
-      setUser(null);
       setProfile(null);
     }
     finally {
@@ -235,8 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [requestAuth]);
 
   const value: AuthContextValue = {
-    session,
-    user,
     profile,
     loading,
     login,

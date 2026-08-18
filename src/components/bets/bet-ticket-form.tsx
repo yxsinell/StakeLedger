@@ -5,6 +5,7 @@ import type { Goal } from '@/lib/goals/schemas';
 import { Plus, Trash2 } from 'lucide-react';
 
 import { useEffect, useRef, useState } from 'react';
+import { readRecommendationPrefill } from '@/components/recommendations/recommendation-prefill';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -91,10 +92,28 @@ export function BetTicketForm() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prefilledRecommendationId, setPrefilledRecommendationId] = useState<string | null>(null);
   const pendingRequest = useRef<PendingRequest | null>(null);
+  const recommendationPrefill = useRef<ReturnType<typeof readRecommendationPrefill> | undefined>(undefined);
 
   useEffect(() => {
     let isCurrent = true;
+    if (recommendationPrefill.current === undefined) {
+      recommendationPrefill.current = readRecommendationPrefill();
+    }
+    const prefill = recommendationPrefill.current;
+
+    if (prefill) {
+      setPrefilledRecommendationId(prefill.recommendationId);
+      setTicketOdds(String(prefill.odds));
+      setLegs(prefill.legs.map(leg => ({
+        referenceType: leg.referenceType,
+        eventReference: leg.eventId,
+        marketReference: leg.marketId,
+        selection: leg.selection,
+        odds: String(leg.odds),
+      })));
+    }
 
     const loadBanks = async () => {
       try {
@@ -115,8 +134,12 @@ export function BetTicketForm() {
 
         if (isCurrent) {
           setBanks(parsed.data.banks);
-          setBankId(parsed.data.banks[0]?.id ?? '');
+          const prefillBankExists = prefill && parsed.data.banks.some(bank => bank.id === prefill.bankId);
+          setBankId(prefillBankExists ? prefill.bankId : parsed.data.banks[0]?.id ?? '');
           setGoals(parsedGoals.data.goals.filter(goal => goal.status === 'active'));
+          if (prefill && !prefillBankExists) {
+            setError('El bank de la recomendación ya no está disponible. Selecciona otro bank antes de confirmar.');
+          }
         }
       }
       catch (loadError) {
@@ -336,6 +359,14 @@ export function BetTicketForm() {
           Define las selecciones, controla el stake y distribuye la financiación antes de confirmar.
         </p>
       </header>
+
+      {prefilledRecommendationId
+        ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm" role="status" data-testid="recommendation_prefill_notice">
+              Selección normalizada precargada desde recomendación. Revisa stake y financiación; el ticket solo se crea cuando confirmes.
+            </div>
+          )
+        : null}
 
       <form
         className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]"

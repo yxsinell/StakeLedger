@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, BookOpen, Goal, LayoutDashboard, Settings2, TicketCheck, Users } from 'lucide-react';
+import { Banknote, BarChart3, BookOpen, Goal, LayoutDashboard, Settings2, Sparkles, TicketCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -56,13 +56,25 @@ const navItems = [
     icon: Goal,
     testId: 'goals_nav',
   },
+  {
+    title: 'Recomendaciones',
+    url: '/dashboard/recommendations',
+    icon: Sparkles,
+    testId: 'recommendations_nav',
+  },
+  {
+    title: 'Métricas',
+    url: '/dashboard/metrics',
+    icon: BarChart3,
+    testId: 'metrics_nav',
+  },
 ];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { user, profile } = useAuth();
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'SL';
+  const { profile } = useAuth();
+  const initials = profile?.email ? profile.email.slice(0, 2).toUpperCase() : 'SL';
 
   return (
     <Sidebar collapsible="icon" data-testid="appSidebar" {...props}>
@@ -119,6 +131,21 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   </SidebarMenuItem>
                 );
               })}
+              {(profile?.role === 'admin' || profile?.role === 'editor') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/dashboard/admin/recommendations'}
+                    tooltip="Gestionar recomendaciones"
+                    data-testid="admin_recommendations_nav"
+                  >
+                    <Link href="/dashboard/admin/recommendations">
+                      <Sparkles className="h-4 w-4" />
+                      <span className={state === 'collapsed' ? 'sr-only' : ''}>Gestionar recomendaciones</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {(profile?.role === 'admin' || profile?.role === 'editor') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
