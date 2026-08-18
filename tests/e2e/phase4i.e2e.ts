@@ -18,14 +18,8 @@ const readState = async () => JSON.parse(await readFile('.playwright/phase4i-sta
 test('SL-14, SL-15, and SL-22 to SL-26: settlement, goals, risk, security, and concurrency', async ({ page }) => {
   test.setTimeout(90_000);
   const state = await readState();
-  await page.goto('/login');
-  await page.waitForLoadState('networkidle');
-  await page.getByTestId('email_input').fill(state.email);
-  await page.getByTestId('password_input').fill(state.password);
-  await expect(page.getByTestId('email_input')).toHaveValue(state.email);
-  await expect(page.getByTestId('password_input')).toHaveValue(state.password);
-  await page.getByTestId('login_button').click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto('/dashboard');
+  await expect(page.getByTestId('appSidebar')).toBeVisible();
 
   await page.goto(`/dashboard/bets/${state.settleBetId}`);
   await page.getByTestId('settlement_result_select').selectOption('won');

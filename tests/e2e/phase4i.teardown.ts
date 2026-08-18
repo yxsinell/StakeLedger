@@ -1,15 +1,20 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { readFile, rm } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 
 const statePath = '.playwright/phase4i-state.json';
+const authStatePath = '.playwright/phase4i-auth.json';
 
-export default async function teardown() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) { throw new Error('Supabase test configuration is required'); }
-  const state = JSON.parse(await readFile(statePath, 'utf8')) as { userIds: string[] };
-  const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+export interface Phase4iCleanupState {
+  userIds: string[]
+  competitionId: string
+  homeTeamId: string
+  awayTeamId: string
+  eventId: string
+  marketId: string
+}
 
+export async function cleanupPhase4iState(supabase: SupabaseClient, state: Phase4iCleanupState) {
   for (const userId of state.userIds) {
     const { data: banks, error: banksError } = await supabase.from('banks').select('id').eq('user_id', userId);
     if (banksError) { throw banksError; }
@@ -37,9 +42,37 @@ export default async function teardown() {
       const { error: riskError } = await supabase.from('risk_limits').delete().eq('user_id', userId); if (riskError) { throw riskError; }
       const { error: banksDeleteError } = await supabase.from('banks').delete().in('id', bankIds); if (banksDeleteError) { throw banksDeleteError; }
     }
+  }
+
+  const { error: marketError } = await supabase.from('catalog_markets').delete().eq('id', state.marketId);
+  if (marketError) { throw marketError; }
+  const { error: eventError } = await supabase.from('catalog_events').delete().eq('id', state.eventId);
+  if (eventError) { throw eventError; }
+  const { error: teamsError } = await supabase.from('catalog_teams').delete().in('id', [state.homeTeamId, state.awayTeamId]);
+  if (teamsError) { throw teamsError; }
+  const { error: competitionError } = await supabase.from('catalog_competitions').delete().eq('id', state.competitionId);
+  if (competitionError) { throw competitionError; }
+
+  for (const userId of state.userIds) {
     // Soft-delete auth access while retaining immutable audit rows and actor profile evidence.
     const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId, true);
     if (deleteUserError) { throw deleteUserError; }
   }
+}
+
+export default async function teardown() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) { throw new Error('Supabase test configuration is required'); }
+  const stateFile = await readFile(statePath, 'utf8').catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') { return null; }
+    throw error;
+  });
+  if (!stateFile) { return; }
+  const state = JSON.parse(stateFile) as Phase4iCleanupState;
+  const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  await cleanupPhase4iState(supabase, state);
   await rm(statePath, { force: true });
+  await rm(authStatePath, { force: true });
 }
