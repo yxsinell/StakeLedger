@@ -1,6 +1,6 @@
 # Architecture Specs - StakeLedger
 
-**Fecha:** 2026-08-16
+**Fecha:** 2026-08-17
 **Version:** 1.1
 **Autor:** Equipo StakeLedger
 
@@ -15,7 +15,6 @@ flowchart LR
   api --> db[(Supabase PostgreSQL)]
   api --> auth[Supabase Auth]
   api --> storage[Supabase Storage]
-  api --> external[External APIs: Sports, OCR]
   ui --> cdn[Vercel Edge Network]
 ```
 
@@ -41,6 +40,8 @@ erDiagram
   bets ||--o{ bet_cashouts : splits
   bets ||--o{ audit_logs : audited
   goals ||--o{ goal_events : updates
+  users ||--o{ recommendation_follows : creates
+  banks ||--o{ recommendation_follows : scopes
   recommendations ||--o{ recommendation_follows : followed
   catalog_teams ||--o{ catalog_aliases : has
   catalog_competitions ||--o{ catalog_aliases : has
@@ -115,9 +116,21 @@ erDiagram
   recommendations {
     uuid id
     uuid user_id
+    uuid event_id
+    uuid market_id
     string type
     decimal odds
-    int icp
+    jsonb icp
+    string status
+    timestamp published_at
+    timestamp inactivated_at
+  }
+  recommendation_follows {
+    uuid id
+    uuid user_id
+    uuid recommendation_id
+    uuid bank_id
+    timestamp created_at
   }
   catalog_teams {
     uuid id
@@ -156,6 +169,8 @@ erDiagram
     timestamp created_at
   }
 ```
+
+Fase 4J no integra providers deportivos, scraping ni OCR. Catálogo permanece local y curado; cualquier integración externa es posterior al MVP.
 
 `catalog_competitions.sport` es obligatorio para entidades normalizadas y nullable únicamente para entradas con `normalization_status='manual'`.
 
@@ -237,6 +252,18 @@ erDiagram
 7. `authenticated` conserva SELECT necesario para BFF, pero no DML directo sobre goals/risk; history es solo lectura.
 8. Goals cerradas son finales, no se recalculan y no se eliminan mediante API.
 
+## 4J. Data Flow (Recommendations and Metrics)
+
+1. Todas las rutas autentican cookie de sesión en BFF; ninguna acepta bearer token como contrato web.
+2. Editor/admin usa `POST /api/recommendations` solo para crear `draft` (`201`) y `PATCH /api/recommendations/{recommendationId}` para editar, publicar o inactivar (`200`); ambos flujos invocan RPCs `SECURITY INVOKER` exclusivas de `service_role` y `authenticated` no escribe tablas Fase 4J directamente.
+3. Publicación valida evento y mercado normalizados y conserva ICP v1 visible. ICP nunca interviene en ordering ni ranking.
+4. Feed autenticado lee por RLS solo `published`, filtra `type|sport|leagueId` y pagina por cursor sobre `(published_at DESC,id DESC)` con 20 default y 50 máximo.
+5. Follow valida bank propio, persiste unique `(user_id,recommendation_id)` y responde prefill normalizada con `201` al crear o `200` ante replay con mismo bank. No toca `bets`, pockets, transactions ni funding.
+6. `inactive` es terminal; bloquea follow nuevo, preserva follows históricos y no admite delete físico.
+7. Metrics BFF invoca RPC `SECURITY INVOKER` exclusiva de `service_role`; RPC valida ownership y agrega solo `status=settled` por rango UTC inclusivo máximo 366 días.
+8. Cash yield usa beneficio/stake del componente cash; operative yield usa `profit_amount/stake_amount`; win rate pondera won=1 y half_won=0.5 sobre decisivos, excluye void y cashout.
+9. No existen proveedor externo, scraping, ranking ICP ni ticket auto-creado en Fase 4J.
+
 ---
 
 ## 5. Security Architecture
@@ -279,6 +306,14 @@ sequenceDiagram
 - Core RPCs de bets permanecen internas y wrappers atómicos incorporan goal/risk sin exponer ejecución a `authenticated`.
 - `max_stake_percentage=40` se fija para filas nuevas/configuradas; filas legacy no se backfillean ni alteran.
 - Migration `20260817160357_implement_goals_and_risk.sql` aplicada y reconciliada con schema remoto.
+
+### Recommendations/Metrics Fase 4J
+
+- Implementación y hardening aplicados local/remotamente hasta `20260817201754_include_incomplete_settled_metrics`; 36 migrations sincronizadas.
+- RLS de lectura separa feed published, follows propios y vista editorial por rol.
+- Writes de recommendations/follows y RPC metrics son `SECURITY INVOKER`, `search_path=''`, ejecutables solo por `service_role` desde BFF; views mantienen privilegios estrictos.
+- Índice de feed soporta `status, published_at DESC, id DESC`; unique follow cubre `(user_id,recommendation_id)`.
+- Rollback SQL, RLS/grants, advisors, Playwright específico 4J y suite E2E completa 4I/4J pasan.
 
 ### Data Protection
 

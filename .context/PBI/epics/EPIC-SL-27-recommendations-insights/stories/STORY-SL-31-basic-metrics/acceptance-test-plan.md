@@ -1,306 +1,43 @@
-# Acceptance Test Plan: STORY-SL-31 - Basic Metrics
+# Acceptance Test Plan - SL-31
 
-**Fecha:** 2026-03-21
-**QA Engineer:** AI-Generated
-**Story Jira Key:** SL-31
-**Epic:** EPIC-SL-27 - Recommendations and Insights
-**Status:** In Review
+- **Fecha:** 2026-08-17
+- **Estado:** Implementado; cobertura automatizada relevante registrada
+- **Casos diseñados:** 12
+- **Ejecución manual completa:** No ejecutada
 
----
+## Objetivo
 
-## Paso 1: Critical Analysis
+Probar dataset settled-only, límites UTC, fórmulas por funding y aislamiento por bank con resultados numéricos reproducibles.
 
-### Business Context of This Story
-**User Persona Affected:**
-- **Primary:** Usuario final - Monitorea rendimiento
+## Casos
 
-**Business Value:**
-- **Value Proposition:** Visibilidad de rendimiento basico
-- **Business Impact:** Mejora decisiones y retencion
+| ID | Nivel | Escenario | Resultado esperado |
+| --- | --- | --- | --- |
+| SL31-01 | Unit/DB | 100% cash won/lost | Cash y operative yield según beneficio/stake |
+| SL31-02 | Unit/DB | Mix cash/bonus/freebet | Cash yield usa solo componente cash; operative usa total |
+| SL31-03 | Unit/DB | won,lost,half_won,half_lost | Win rate ponderado exacto |
+| SL31-04 | Unit/DB | void dentro del rango | Incluye settledCount; excluye decisiveCount/win rate |
+| SL31-05 | Unit/DB | cashout dentro del rango | Excluido de todos los agregados |
+| SL31-06 | API/DB | open y settled fuera del rango | Excluidos |
+| SL31-07 | API/DB | settled exactamente en límites UTC | Ambos límites inclusivos |
+| SL31-08 | API | Rango sin settled | Todos los agregados y ratios en cero |
+| SL31-09 | API | from > to o rango 367 días | `400` |
+| SL31-10 | API | Rango exacto 366 días | Aceptado |
+| SL31-11 | API/RLS | bank ajeno/inexistente | `404` genérico y sin fuga cross-owner |
+| SL31-12 | RLS/grants | RPC directa authenticated | Denegada; service_role desde BFF permitido |
 
-**Related User Journey:**
-- Journey: Seguimiento de performance
-- Step: Consultar metricas por bank y rango
+## Fixture Numérico Mínimo
 
----
+Para cuatro resultados decisivos `won,lost,half_won,half_lost`, win rate esperado es `(1 + 0.5) / 4 = 0.375`. Agregar void no cambia numerador ni denominador decisivo.
 
-### Technical Context of This Story
-**Architecture Components:**
+## Cobertura Automatizada Observada
 
-**Frontend:**
-- Components: vista de metricas, filtros de rango
-- Pages/Routes: Metrics
+- Unit: llamada RPC, parse estricto y mapeo de errores dentro de 84 tests/219 assertions PASS.
+- DB/security: RPC remota `SECURITY INVOKER` exclusiva de `service_role`, ownership y fuente de métricas con privilegios estrictos verificados.
+- E2E específico 4J: un settled cash won produce counts, stakes, profit y ratios esperados; UI de resultados PASS.
+- Migrations, tipos, OpenAPI, repo checks y advisors verificados.
 
-**Backend:**
-- API Endpoints: metricas por bank/rango (segun api-contracts.yaml)
-- Services: calculo de yield y win rate
-- Database: Ledger, Bets
+## Gaps
 
-**External Services:**
-- Ninguno
-
-**Integration Points:**
-- UI Metrics <-> API de metricas
-- API <-> Ledger/Bets DB
-
----
-
-### Story Complexity Analysis
-**Overall Complexity:** Medium
-**Complexity Factors:**
-- Business logic complexity: High - formulas de yield
-- Integration complexity: Medium - dependencia con liquidacion
-- Data validation complexity: Medium - rango de fechas
-- UI complexity: Medium - filtros y estados vacio
-
-**Estimated Test Effort:** Medium
-**Rationale:** requiere validacion de calculos y data sets
-
----
-
-### Epic-Level Context (From Feature Test Plan)
-**Critical Risks Already Identified at Epic Level:**
-- Metricas incorrectas afectan decisiones
-  - **Relevance to This Story:** riesgo directo de calculo
-
-**Integration Points from Epic Analysis:**
-- Feed <-> Metrics: No
-- Recomendaciones <-> Ledger: Indirecto
-
-**Critical Questions Already Asked at Epic Level:**
-- Formulas exactas de yield: pendiente
-
-**Test Strategy from Epic:**
-- Test Levels: Unit, Integration, E2E, API
-- Tools: Playwright, Postman/Newman
-- **How This Story Aligns:** API/UI con datos controlados
-
-**Summary: How This Story Fits in Epic:**
-- **Story Role in Epic:** expone metricas basicas por bank
-- **Inherited Risks:** calculos y consistencia
-- **Unique Considerations:** usuarios sin apuestas
-
----
-
-## Paso 2: Story Quality Analysis
-
-### Ambiguities Identified
-**Ambiguity 1:** Formulas exactas de yield cash y yield operativo
-- **Location in Story:** Notes / Technical Notes
-- **Question for PO/Dev:** cuales son las formulas exactas y rounding?
-- **Impact on Testing:** no se puede validar resultados
-- **Suggested Clarification:** definir formulas y precision
-
-**Ambiguity 2:** Definicion de apuestas liquidadas
-- **Location in Story:** Business Rules
-- **Question for PO/Dev:** que estados de apuesta se consideran liquidadas?
-- **Impact on Testing:** dataset invalido
-- **Suggested Clarification:** lista de estados validos
-
----
-
-### Missing Information / Gaps
-**Gap 1:** Rango de fechas valido
-- **Type:** Business Rule
-- **Why It's Critical:** afecta validacion de filtros
-- **Suggested Addition:** formato, max rango, y timezone
-- **Impact if Not Added:** tests de rango bloqueados
-
-**Gap 2:** Comportamiento de cache
-- **Type:** Technical Details
-- **Why It's Critical:** impacta consistencia de resultados
-- **Suggested Addition:** TTL y criterio de invalidacion
-- **Impact if Not Added:** no se validan escenarios de cache
-
----
-
-### Edge Cases NOT Covered in Original Story
-**Edge Case 1:** Apuestas liquidadas en rango parcial
-- **Scenario:** algunas apuestas dentro y otras fuera
-- **Expected Behavior:** incluir solo dentro del rango
-- **Criticality:** Medium
-- **Action Required:** Add to test cases
-
-**Edge Case 2:** Rango invalido (fin < inicio)
-- **Scenario:** fecha fin anterior a inicio
-- **Expected Behavior:** error de validacion
-- **Criticality:** High
-- **Action Required:** Add to story
-
----
-
-### Testability Validation
-**Is this story testeable as written?** Partially
-**Testability Issues:**
-- [x] Expected results are not specific enough
-- [x] Missing test data examples
-
-**Recommendations to Improve Testability:**
-- Definir formulas, precision y rounding
-- Definir rango valido y timezone
-- Definir estados liquidados
-
----
-
-## Paso 3: Refined Acceptance Criteria
-
-### Scenario 1: Ver metricas
-**Type:** Positive
-**Priority:** Critical
-- **Given:** usuario con apuestas liquidadas en el rango
-- **When:** accede a la vista de metricas
-- **Then:** se muestran yield cash, yield operativo y win rate
-
----
-
-### Scenario 2: Sin apuestas
-**Type:** Negative
-**Priority:** Medium
-- **Given:** usuario sin apuestas liquidadas
-- **When:** accede a metricas
-- **Then:** se muestran ceros o estado vacio definido
-
----
-
-### Scenario 3: Rango invalido
-**Type:** Negative
-**Priority:** High
-- **Given:** usuario en la vista de metricas
-- **When:** selecciona un rango invalido
-- **Then:** se muestra error de validacion
-
----
-
-### Scenario 4: Solo apuestas dentro del rango
-**Type:** Boundary
-**Priority:** Medium
-- **Given:** usuario con apuestas dentro y fuera del rango
-- **When:** consulta metricas
-- **Then:** solo se consideran apuestas dentro del rango
-
----
-
-## Paso 4: Test Design
-
-### Test Coverage Analysis
-**Total Test Cases Needed:** 11
-**Breakdown:**
-- Positive: 3
-- Negative: 4
-- Boundary: 3
-- Integration: 1
-
-**Rationale for This Number:** cubre calculos, rangos y estados vacios
-
----
-
-### Parametrization Opportunities
-**Parametrized Tests Recommended:** Yes
-**Parametrized Test Group 1: Rangos de fechas**
-- **Base Scenario:** consulta de metricas
-- **Parameters to Vary:** rango valido, rango vacio, rango invalido
-- **Test Data Sets:**
-
-| rango | apuestas | Expected Result |
-| ----- | -------- | --------------- |
-| valido | con apuestas | metricas calculadas |
-| valido | sin apuestas | ceros/estado vacio |
-| invalido | n/a | error |
-
-**Total Tests from Parametrization:** 3
-**Benefit:** cubre reglas de rango con menos duplicacion
-
----
-
-## Test Outlines
-
-#### **Validar visualizacion de metricas**
-**Related Scenario:** Scenario 1
-**Type:** Positive
-**Priority:** Critical
-**Test Level:** API
-**Parametrized:** Yes (Group 1)
-
-**Preconditions:**
-- Apuestas liquidadas con datos conocidos
-
-**Test Steps:**
-1. Consultar metricas por bank y rango
-2. Verificar valores calculados
-
-**Expected Result:**
-- Yield cash, yield operativo y win rate correctos
-
----
-
-#### **Validar usuario sin apuestas**
-**Related Scenario:** Scenario 2
-**Type:** Negative
-**Priority:** Medium
-**Test Level:** UI
-**Parametrized:** No
-
-**Preconditions:**
-- Usuario sin apuestas liquidadas
-
-**Test Steps:**
-1. Abrir vista de metricas
-2. Verificar estado vacio/ceros
-
-**Expected Result:**
-- Estado vacio o ceros definidos
-
----
-
-#### **Validar rango invalido**
-**Related Scenario:** Scenario 3
-**Type:** Negative
-**Priority:** High
-**Test Level:** UI
-**Parametrized:** Yes (Group 1)
-
-**Preconditions:**
-- Vista de metricas disponible
-
-**Test Steps:**
-1. Seleccionar rango invalido
-2. Verificar mensaje
-
-**Expected Result:**
-- Error de validacion
-
----
-
-#### **Validar inclusion por rango**
-**Related Scenario:** Scenario 4
-**Type:** Boundary
-**Priority:** Medium
-**Test Level:** API
-**Parametrized:** No
-
-**Preconditions:**
-- Apuestas dentro y fuera del rango
-
-**Test Steps:**
-1. Consultar metricas
-2. Verificar inclusion solo dentro del rango
-
-**Expected Result:**
-- Calculos excluyen apuestas fuera del rango
-
----
-
-## Edge Cases Summary
-| Edge Case | Covered in Original Story? | Added to Refined AC? | Test Case | Priority |
-| --------- | -------------------------- | -------------------- | --------- | -------- |
-| Apuestas parciales en rango | No | Yes (Scenario 4) | TC-04 | Medium |
-| Rango invalido (fin < inicio) | No | Yes (Scenario 3) | TC-03 | High |
-
----
-
-## Test Data Summary
-### Data Categories
-| Data Type | Count | Purpose | Examples |
-| --------- | ----- | ------- | -------- |
-| Valid data | 3 | Positive tests | apuestas liquidadas con resultados conocidos |
-| Invalid data
+- No se ejecutaron manualmente los 12 casos como suite ATP trazada uno a uno.
+- Sin evidencia E2E específica para mix bonus/freebet, half/void/cashout, denominador cero, límites UTC, 366/367 días y cross-owner; requieren cobertura futura o ejecución manual dirigida.

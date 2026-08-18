@@ -33,9 +33,12 @@ La protección usa comprobación contra Have I Been Pwned. Es una configuración
 | `bet_idempotencies` con RLS sin policy | Defensa intencional | Aceptado: no concede privilegios a `anon` ni `authenticated`; solo `service_role` la usa dentro de la RPC atómica. |
 | Idempotencias settlement/cashout con RLS sin policy | Defensa intencional | Aceptado: tablas sin grants de aplicación; RPCs `SECURITY INVOKER` exclusivas de `service_role`. |
 | `settle_bet` y `partial_cashout_bet` | Superficie BFF restringida | `SECURITY INVOKER`, `search_path=''`, ownership, locks e inputs validados; `EXECUTE` solo `service_role`. |
-| RPCs Fase 4I goals/risk y wrappers bets | Superficie BFF restringida | Migration local usa `SECURITY INVOKER`, `search_path=''`, locks y `EXECUTE` solo `service_role`; `authenticated` conserva SELECT RLS y pierde DML directo sobre goals/risk. Aplicación remota pendiente. |
+| RPCs Fase 4I goals/risk y wrappers bets | Superficie BFF restringida | Migration local/remota usa `SECURITY INVOKER`, `search_path=''`, locks y `EXECUTE` solo `service_role`; `authenticated` conserva SELECT RLS y carece de DML directo sobre goals/risk. |
+| Fase 4J recommendations/follows/metrics | Superficie BFF restringida y verificada | Rutas cookie BFF; writes y RPC de métricas son `SECURITY INVOKER`, `search_path=''`, con `EXECUTE` solo `service_role`. `authenticated` carece de DML/EXECUTE directo; RLS y privilegios estrictos de views protegen feed, recursos propios y vista editorial. |
 | `is_admin` e `is_catalog_editor` SECURITY DEFINER ejecutables por `authenticated` | Helper RLS intencional | Aceptado temporalmente: devuelven booleano del usuario actual y permiten políticas RLS. |
 | FKs sin índice e índices sin uso | Rendimiento, no seguridad | Diferir hasta que los flujos correspondientes tengan tráfico y planes de consulta reales. |
+
+Advisors posteriores a Fase 4J no reportaron alertas nuevas critical/high. Permanecen avisos conocidos de metadatos GraphQL, leaked password protection y funciones legacy `SECURITY DEFINER`; los índices señalados son informativos de rendimiento.
 
 ## Estrategia GraphQL
 
@@ -63,10 +66,11 @@ Para cada función privilegiada futura:
 
 Guías: <https://supabase.com/docs/guides/database/database-advisors?queryGroups=lint&lint=0029_authenticated_security_definer_function_executable> y <https://supabase.com/docs/guides/auth/row-level-security#helper-functions>.
 
-## Verificación previa a una migration de seguridad
+## Baseline de verificación de seguridad
 
-- Confirmar las 21 versiones locales contra remoto.
+- 36 versiones locales/remotas sincronizadas hasta `20260817201754_include_incomplete_settled_metrics`.
 - Probar acceso BFF de usuario propio y rechazo cruzado.
 - Probar RPC de creación de bank si se modifican grants o funciones.
 - Probar RPC de creación de ticket, idempotencia y rollback si se modifican grants o tablas de bets.
 - Revisar advisors de seguridad y rendimiento tras aplicación.
+- Fase 4J verificó ausencia de DML/EXECUTE para `authenticated`, RPCs `SECURITY INVOKER` exclusivas de `service_role`, privilegios estrictos de views, ownership de follows/banks y aislamiento de métricas.

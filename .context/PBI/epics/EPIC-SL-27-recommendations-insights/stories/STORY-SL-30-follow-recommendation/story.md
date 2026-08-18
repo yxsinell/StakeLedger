@@ -1,167 +1,58 @@
-# As a user, I want to follow a recommendation and prefill the bet entry so that I can register it quickly
+# SL-30 - Seguir recomendación y precargar ticket
 
-**Jira Key:** SL-30
-**Epic:** EPIC-SL-27 (Recommendations and Insights)
-**Priority:** Medium
-**Story Points:** 3
-**Status:** To Do
-**Assignee:** null
-
----
+- **Jira Key:** SL-30
+- **Epic:** EPIC-SL-27
+- **Estado documental:** Implementado
+- **Estado de ejecución:** Cerrado con cobertura automatizada relevante; ATP manual completo no ejecutado
 
 ## User Story
 
-**As a** usuario
-**I want to** seguir una recomendacion y precargar el registro de apuesta
-**So that** pueda registrarla rapidamente
+Como usuario, quiero seguir una recomendación desde un bank propio y recibir una precarga normalizada para revisar el ticket antes de registrarlo.
 
----
+## Alcance
 
-## Scope
+- Exigir `bankId` existente y propiedad del usuario.
+- Admitir follow solo para recommendation `published` con datos normalizados completos.
+- Persistir una fila única por `(user_id,recommendation_id)`.
+- Hacer replay idempotente: mismo usuario/recommendation/bank devuelve el follow existente; otro bank propio devuelve `409` y no reemplaza el follow.
+- Devolver prefill compatible con SL-12: bank, recommendation, ticket odds y una leg `normalized` con evento, mercado, selection y odds.
 
-<!-- Jira Field: customfield_10401 (⛳SCOPE) -->
+## Acceptance Criteria
 
-### In Scope
+### AC1 - Follow persistido
 
-- Accion de seguir recomendacion
-- Precarga de formulario con evento, mercado y odds
-- Seleccion de bank para registrar apuesta
+Primera llamada válida crea follow y devuelve `201`; replay con mismo bank devuelve la misma identidad y `200`, sin duplicado. Replay con otro bank devuelve `409` sin mutación.
 
-### Out of Scope
+### AC2 - Bank obligatorio y propio
 
-- Registro automatico sin confirmacion
-- Seguimiento automatico de resultados
+Sin bank o UUID inválido responde `400`; bank ajeno/inexistente responde `404` genérico y no persiste follow.
 
----
+### AC3 - Estado publicado
 
-## Acceptance Criteria (Gherkin format)
+Draft o inactive no admite follow. Inactivar luego preserva follows históricos, pero bloquea nuevos.
 
-<!-- Jira Field: customfield_10201 (✅ Acceptance Criteria) -->
+### AC4 - Prefill normalizada
 
-### Scenario 1: Precarga exitosa
+Respuesta contiene exclusivamente datos normalizados necesarios para abrir formulario de ticket. No incluye stake/funding decidido por servidor.
 
-- **Given:** una recomendacion activa
-- **When:** el usuario selecciona seguir recomendacion
-- **Then:** el formulario de apuesta se precarga con datos del evento
+### AC5 - Sin efectos financieros
 
-### Scenario 2: Recomendacion inactiva
+Follow no crea bet, legs persistidas, funding, reservas, transactions ni movimientos de pockets. Ticket solo nace tras confirmación explícita en `POST /api/bets`.
 
-- **Given:** una recomendacion inactiva
-- **When:** el usuario intenta seguirla
-- **Then:** el sistema muestra mensaje y no precarga
+### AC6 - Seguridad
 
-### Scenario 3: Usuario sin bank
+Cookie BFF invoca RPC `SECURITY INVOKER` solo `service_role`; lectura de follows aplica ownership RLS.
 
-- **Given:** un usuario sin banks
-- **When:** intenta seguir una recomendacion
-- **Then:** el sistema solicita crear un bank primero
+## Fuera De Alcance
 
----
+- Ticket automático, seguimiento automático de resultados y sincronización externa.
 
-## Business Rules
+## Dependencias
 
-<!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
+- SL-28/29, banks y flujo SL-12.
 
-- Solo recomendaciones activas pueden seguirse
-- Precarga debe incluir datos normalizados
+## Evidencia De Cierre
 
----
-
-## Workflow
-
-<!-- Jira Field: customfield_10500 (🧬WORKFLOW) - Opcional -->
-
-1. Usuario selecciona recomendacion
-2. Sistema precarga formulario
-3. Usuario confirma registro
-
----
-
-## Mockups/Wireframes
-
-<!-- Jira Field: customfield_10400 (🎴MOCKUP) - Opcional -->
-
-- No definido
-
----
-
-## Technical Notes
-
-### Frontend
-
-- CTA para seguir recomendacion
-
-### Backend
-
-- Reutilizar flujo de registro de tickets
-- Validar estado de recomendacion
-
-### Database
-
-- Recommendations
-- **IMPORTANTE:** No hardcodear SQL. Usar Supabase MCP
-
-### External Services
-
-- Ninguno
-
----
-
-## Dependencies
-
-### Blocked By
-
-- SL-28 (publicacion de recomendaciones)
-- SL-29 (feed filtrable)
-
-### Blocks
-
-- SL-31 (metricas basicas)
-
-### Related Stories
-
-- SL-28
-- SL-29
-
----
-
-## Definition of Done
-
-- [ ] Codigo implementado y funcionando
-- [ ] Tests unitarios (coverage > 80%)
-- [ ] Tests de integracion (API + DB)
-- [ ] Tests E2E (Playwright)
-- [ ] Code review aprobado (2 reviewers)
-- [ ] Documentacion actualizada (README, API docs)
-- [ ] Deployed to staging
-- [ ] QA testing passed
-- [ ] Acceptance criteria validated
-- [ ] No critical/high bugs open
-
----
-
-## Testing Strategy
-
-See: `.context/PBI/epics/EPIC-SL-27-recommendations-insights/stories/STORY-SL-30-follow-recommendation/acceptance-test-plan.md`
-
-**Test Cases Expected:** 6+ detailed test cases covering:
-
-- Happy path
-- Error scenarios
-- Edge cases
-- Security validations
-
----
-
-## Notes
-
-- Definir parametros a precargar en apuesta
-
----
-
-## Related Documentation
-
-- **Epic:** `.context/PBI/epics/EPIC-SL-27-recommendations-insights/epic.md`
-- **PRD:** `.context/PRD/mvp-scope.md`
-- **SRS:** `.context/SRS/functional-specs.md` (FR-024)
-- **API Contracts:** `.context/SRS/api-contracts.yaml`
+- Persistencia, RPC, endpoint, prefill y UI implementados mediante migrations Fase 4J sincronizadas hasta `20260817194604_add_follow_creation_status`, que permite responder `201` en creación y `200` en replay.
+- SQL rollback verifica follow idempotente, inactive y cero bet; Playwright 4J verifica selector de bank y ausencia de bet adicional.
+- Cobertura y gaps: `.context/reports/phase-4j-verification.md`.

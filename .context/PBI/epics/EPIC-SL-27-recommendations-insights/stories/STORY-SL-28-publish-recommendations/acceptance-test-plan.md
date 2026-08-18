@@ -1,251 +1,47 @@
-# Acceptance Test Plan: STORY-SL-28 - Publish Recommendations
+# Acceptance Test Plan - SL-28
 
-**Fecha:** 2026-03-21
-**QA Engineer:** AI-Generated
-**Story Jira Key:** SL-28
-**Epic:** EPIC-SL-27 - Recommendations and Insights
-**Status:** In Review
+- **Fecha:** 2026-08-17
+- **Estado:** Implementado; cobertura automatizada relevante registrada
+- **Casos diseñados:** 12
+- **Ejecución manual completa:** No ejecutada
 
----
+## Objetivo
 
-## Paso 1: Critical Analysis
+Validar lifecycle editorial, normalización, ICP v1 y separación cookie BFF/service-role/RLS.
 
-### Business Context of This Story
-**User Persona Affected:**
-- **Primary:** Admin/Editor - Publica recomendaciones para el feed
-- **Secondary:** Usuario final - Consume recomendaciones publicadas
+## Casos
 
-**Business Value:**
-- **Value Proposition:** Publicacion confiable de recomendaciones normalizadas
-- **Business Impact:** Habilita contenido accionable y seguimiento en el feed
+| ID | Nivel | Escenario | Resultado esperado |
+| --- | --- | --- | --- |
+| SL28-01 | API/DB | Editor usa `POST` con payload `status=draft` válido | `201`, draft persistido, ICP exacto visible |
+| SL28-02 | API/DB | Admin usa `PATCH` para editar draft y published | `200`, mismo id; campos no enviados, normalización e ICP se preservan |
+| SL28-03 | API/DB | Usuario común crea/edita | `403`, cero mutaciones |
+| SL28-04 | API/DB | Evento manual/no normalizado | `400`, cero mutaciones |
+| SL28-05 | API/DB | Mercado no normalizado o de otro evento | `400`, cero mutaciones |
+| SL28-06 | Unit/API | ICP boundaries score 0 y 100, factors 1 y 20 | Aceptados con objeto intacto |
+| SL28-07 | Unit/API | Score decimal/out of range; factors 0/21/vacío | `400` |
+| SL28-08 | API/DB | Publicar draft válido mediante `PATCH` | `200`, published_at fijado una vez |
+| SL28-09 | API/DB | Publicar estado no permitido | `409`, estado sin cambios |
+| SL28-10 | API/DB | Inactivar draft/publicada mediante `PATCH` | `200`, estado inactive terminal; históricos intactos |
+| SL28-11 | API/DB | Editar/reactivar/publicar/delete inactive | Rechazo; no existe delete físico |
+| SL28-12 | RLS/grants | `authenticated` intenta DML/EXECUTE directo | Denegado; service_role RPC permitido |
 
-**Related User Journey:**
-- Journey: Publicacion y consumo de recomendaciones
-- Step: Publicar recomendacion normalizada
+## Datos Límite
 
----
+- ICP válido mínimo: `{version:1,score:0,factors:["a"]}`.
+- ICP válido máximo: score 100 y 20 factors no vacíos.
+- Odds: `>1`; type: `pre|live`; IDs UUID normalizados relacionados.
 
-### Technical Context of This Story
-**Architecture Components:**
+## Cobertura Automatizada Observada
 
-**Frontend:**
-- Components: UI de creacion de recomendaciones
-- Pages/Routes: Admin/Recommendations (por definir)
+- Unit: ICP boundaries/factors, validaciones y OpenAPI runtime dentro de 84 tests/219 assertions PASS.
+- SQL rollback: create, publish, inactive terminal y grants/RLS PASS, sin residuo.
+- E2E específico 4J: superficie editorial y rechazo de evento inexistente PASS.
+- Migrations remotas/locales, tipos, `bun run repo:check`, `git diff --check` y advisors verificados.
 
-**Backend:**
-- API Endpoints: Publicacion de recomendacion (segun api-contracts.yaml)
-- Services: Normalizacion y validacion de eventos
-- Database: Recommendations, Events
+## Gaps
 
-**External Services:**
-- Ninguno
+- No se ejecutaron manualmente los 12 casos como suite ATP trazada uno a uno.
+- E2E específico no recorre create/edit/publish/inactivate exitosos; esa cobertura queda en unit/SQL/API automatizados.
 
-**Integration Points:**
-- UI Admin <-> API de recomendaciones
-- API <-> Events normalizados
-- API <-> Recommendations DB
-
----
-
-### Story Complexity Analysis
-**Overall Complexity:** High
-**Complexity Factors:**
-- Business logic complexity: Medium - reglas de normalizacion e ICP
-- Integration complexity: High - validacion con eventos normalizados
-- Data validation complexity: High - campos requeridos + ICP
-- UI complexity: Medium - formulario con validaciones
-
-**Estimated Test Effort:** High
-**Rationale:** validaciones estrictas, permisos y dependencias con catalogo normalizado
-
----
-
-### Epic-Level Context (From Feature Test Plan)
-**Critical Risks Already Identified at Epic Level:**
-- Datos inconsistentes en recomendaciones por normalizacion/ICP
-  - **Relevance to This Story:** afecta la publicacion y calidad del feed
-- Precarga sin trazabilidad al ledger
-  - **Relevance to This Story:** impacto indirecto (datos correctos desde origen)
-
-**Integration Points from Epic Analysis:**
-- Recomendaciones <-> Eventos: Yes (validacion de evento normalizado)
-- Recomendaciones <-> Ledger: No (no aplica directo en esta story)
-- Feed <-> Metrics: No
-
-**Critical Questions Already Asked at Epic Level:**
-- Campos ICP y reglas de validacion: pendiente
-- Umbrales de performance: no aplica directo
-
-**Test Strategy from Epic:**
-- Test Levels: Unit, Integration, E2E, API
-- Tools: Playwright, Postman/Newman
-- **How This Story Aligns:** Unit para validaciones, Integration/API para publicacion
-
-**Summary: How This Story Fits in Epic:**
-- **Story Role in Epic:** habilita la publicacion normalizada
-- **Inherited Risks:** datos inconsistentes
-- **Unique Considerations:** permisos admin/editor y validacion de evento
-
----
-
-## Paso 2: Story Quality Analysis
-
-### Ambiguities Identified
-**Ambiguity 1:** Campos ICP requeridos y validaciones exactas
-- **Location in Story:** Notes / Scope / Technical Notes
-- **Question for PO/Dev:** Cuales campos ICP son obligatorios y reglas de validacion por campo?
-- **Impact on Testing:** no se pueden definir casos boundary ni errores esperados
-- **Suggested Clarification:** listar campos, tipos, min/max y formatos
-
-**Ambiguity 2:** Mensajes de error y codigos esperados
-- **Location in Story:** AC Scenario 2 y 3
-- **Question for PO/Dev:** cual es el mensaje/codigo de error para evento no normalizado y permisos?
-- **Impact on Testing:** no hay criterios verificables de error
-- **Suggested Clarification:** definir codigos y textos de error
-
----
-
-### Missing Information / Gaps
-**Gap 1:** Endpoint y payload de publicacion
-- **Type:** Technical Details
-- **Why It's Critical:** necesario para tests API e integration
-- **Suggested Addition:** especificar endpoint, payload y response en api-contracts
-- **Impact if Not Added:** tests API bloqueados
-
-**Gap 2:** Definicion de "evento normalizado"
-- **Type:** Business Rule
-- **Why It's Critical:** condicion principal de validacion
-- **Suggested Addition:** criterios de normalizacion y fuente de verdad
-- **Impact if Not Added:** resultados no verificables
-
----
-
-### Edge Cases NOT Covered in Original Story
-**Edge Case 1:** Evento normalizado pero mercado/odds inconsistentes
-- **Scenario:** evento existe, pero mercado/odds no cumplen reglas
-- **Expected Behavior:** rechazo con error de validacion
-- **Criticality:** High
-- **Action Required:** Add to story
-
-**Edge Case 2:** Duplicado de recomendacion para mismo evento/mercado
-- **Scenario:** admin intenta publicar recomendacion duplicada
-- **Expected Behavior:** bloquear o versionar segun regla
-- **Criticality:** Medium
-- **Action Required:** Ask PO
-
----
-
-### Testability Validation
-**Is this story testeable as written?** Partially
-**Testability Issues:**
-- [ ] Acceptance criteria are vague or subjective
-- [x] Expected results are not specific enough
-- [x] Missing test data examples
-- [x] Cannot be tested in isolation (missing dependencies info)
-
-**Recommendations to Improve Testability:**
-- Definir campos ICP y reglas de validacion
-- Documentar endpoint/payload/errores
-- Definir manejo de duplicados
-
----
-
-## Paso 3: Refined Acceptance Criteria
-
-### Scenario 1: Publicacion exitosa con datos normalizados
-**Type:** Positive
-**Priority:** Critical
-- **Given:** admin autenticado con rol editor
-- **When:** crea una recomendacion con evento normalizado, mercado valido, odds validas, type (pre/live) e ICP completo
-- **Then:**
-  - la recomendacion se guarda en Recommendations
-  - queda asociada al evento normalizado
-  - aparece en el feed
-
----
-
-### Scenario 2: Evento no normalizado
-**Type:** Negative
-**Priority:** High
-- **Given:** admin autenticado
-- **When:** intenta publicar con evento no normalizado
-- **Then:**
-  - la publicacion es rechazada
-  - se retorna error de validacion
-  - no se crea registro en Recommendations
-
----
-
-### Scenario 3: Usuario sin permisos
-**Type:** Negative
-**Priority:** High
-- **Given:** usuario sin rol admin/editor
-- **When:** intenta publicar una recomendacion
-- **Then:**
-  - la accion es rechazada por permisos
-  - no se crea registro
-
----
-
-### Scenario 4: Datos ICP incompletos
-**Type:** Boundary
-**Priority:** High
-- **Given:** admin autenticado
-- **When:** intenta publicar sin uno o mas campos ICP obligatorios
-- **Then:**
-  - se rechaza con error de validacion
-  - no se publica en el feed
-  - no se crea registro
-
----
-
-### Scenario 5: Recomendacion duplicada
-**Type:** Edge Case
-**Priority:** Medium
-**Source:** Identified during critical analysis
-- **Given:** existe una recomendacion publicada para mismo evento/mercado/type
-- **When:** admin intenta publicar otra igual
-- **Then:**
-  - **Expected Behavior:** requiere definicion (rechazar o versionar)
-  - **Note:** necesita confirmacion PO/Dev
-
----
-
-## Paso 4: Test Design
-
-### Test Coverage Analysis
-**Total Test Cases Needed:** 12
-**Breakdown:**
-- Positive: 3
-- Negative: 5
-- Boundary: 3
-- Integration: 1
-
-**Rationale for This Number:** cubre happy path, permisos, validaciones ICP y evento normalizado
-
----
-
-### Parametrization Opportunities
-**Parametrized Tests Recommended:** Yes
-**Parametrized Test Group 1: Validaciones de ICP**
-- **Base Scenario:** publicacion con ICP
-- **Parameters to Vary:** campos ICP obligatorios, formatos, min/max
-- **Test Data Sets:**
-
-| icp_field_a | icp_field_b | type | Expected Result |
-| ----------- | ----------- | ---- | --------------- |
-| valid       | valid       | pre  | published       |
-| missing     | valid       | pre  | validation error|
-| valid       | invalid     | live | validation error|
-
-**Total Tests from Parametrization:** 3
-**Benefit:** reduce duplicacion en validaciones de ICP
-
----
-
-## Test Outlines
-
-#### **Validar publicacion exitosa con datos normalizados y ICP completo**
-**Related Scenario:** Scenario 1
-**Type:** Positive
-**Pri
+Fuente de evidencia: `.context/reports/phase-4j-verification.md`.

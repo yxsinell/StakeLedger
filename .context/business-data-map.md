@@ -1,6 +1,6 @@
 # Business Data Map: StakeLedger
 
-> Fuente de verdad operativa del MVP. Actualizado: 2026-08-17.
+> Fuente de verdad operativa del MVP. Actualizado: 2026-08-17 (reconciliación Fase 4J).
 >
 > Leyenda: **Implementado** describe comportamiento verificable en código o schema remoto. **Confirmado** recoge una decisión de producto explícita. **Adoptado** es una decisión de arquitectura tomada para cerrar un bloqueo. **Diseñado** define un contrato aprobado todavía no implementado. **Futuro** existe en schema o especificación, pero aún no tiene flujo de aplicación implementado.
 
@@ -68,12 +68,12 @@ catalog_events + catalog_markets ----> bet_legs | recommendations
 | `bet_funding` | Hereda titularidad de bet | Existe. Cada pocket positivo crea una fila enlazada a su `bet_reserve`. |
 | `bet_cashouts` | Hereda titularidad de bet | Implementado. `source_bet_id` identifica el original cerrado y `bet_id` el derivado abierto. |
 | `audit_logs` | Actor y entidad auditada | Existe. Inmutable; ownership de lectura depende de actor, entidad propia o admin. |
-| `goals` | `user_id`, y bank del mismo titular | Implementación local Fase 4I; una active por bank, sin deletes. Migration remota pendiente. |
-| `goal_history` | Hereda titularidad de goal | Implementación local: creación, snapshot diario, recálculo por bet y cierre. |
-| `risk_limits` | `user_id`, único | Implementación local: max odds y pérdida diaria opt-in; cap de stake fijo 40%. |
+| `goals` | `user_id`, y bank del mismo titular | Implementado local y remoto en Fase 4I; una active por bank, sin deletes. |
+| `goal_history` | Hereda titularidad de goal | Implementado local y remoto: creación, snapshot diario, recálculo por bet y cierre. |
+| `risk_limits` | `user_id`, único | Implementado local y remoto: max odds y pérdida diaria opt-in; cap de stake fijo 40%. |
 | catálogo | `user` crea entradas manuales; `editor/admin` mantienen entidades normalizadas y alias; autenticados leen | Existe como `catalog_teams`, `catalog_competitions`, `catalog_aliases`, `catalog_events`, `catalog_markets`. MVP local y curado, sin proveedor externo. |
-| `recommendations` | Editor/admin crea y actualiza | Existe. Feed futuro con estados `draft`, `published`, `inactive`. |
-| `recommendation_follows` | `user_id` | Existe. Seguimiento futuro, único por usuario y recomendación. |
+| `recommendations` | Editor/admin crea y actualiza mediante BFF | Implementado local y remoto en Fase 4J. Estados `draft`, `published`, `inactive`; sin delete físico. |
+| `recommendation_follows` | `user_id`; bank propio obligatorio | Implementado local y remoto en Fase 4J. Único por usuario y recomendación; replay con mismo bank es idempotente. |
 
 ## 4. Flujos de negocio
 
@@ -184,7 +184,7 @@ POST /api/bets/{id}/cashout -> RPC partial_cashout_bet
 - Las 4 bets legacy sin funding, reserva ni idempotencia permanecen intactas; constraints nuevas exigen la forma Fase 4G a filas nuevas sin validar retrospectivamente las legacy.
 - No se aplicó borrado, backfill ni transformación de filas legacy.
 
-### Catálogo normalizado y fallback manual — Diseñado para Fase 4F
+### Catálogo normalizado y fallback manual — Implementado local y remotamente en Fase 4F
 
 ```text
 Consulta >= 2 caracteres -> catálogo local -> resultado normalizado
@@ -198,7 +198,7 @@ Consulta >= 2 caracteres -> catálogo local -> resultado normalizado
 - **Adoptado:** editor/admin mantiene entidades `normalized` y aliases.
 - **Adoptado:** alias se normaliza con `lower(trim(alias))` y es único por entidad de destino.
 - **Adoptado:** proveedor y `external_id` son opcionales en MVP local; cuando se introduzcan, el par será único por entidad.
-- **Adoptado:** tickets y recomendaciones futuras deberán distinguir referencias normalizadas de entradas manuales explícitamente marcadas.
+- **Implementado:** tickets y recomendaciones distinguen referencias normalizadas de entradas manuales explícitamente marcadas.
 
 #### Estados de normalización de catálogo
 
@@ -219,7 +219,7 @@ Consulta >= 2 caracteres -> catálogo local -> resultado normalizado
 | Orden | exact match, prefijo por nombre, prefijo por alias, nombre ascendente, id ascendente. |
 | Resultado | Solo entidades `normalized`; empty state ofrece ingreso manual. |
 
-### Metas y riesgo — Implementado localmente en Fase 4I
+### Metas y riesgo — Implementado local y remotamente en Fase 4I
 
 ```text
 Usuario -> goal activa vinculada a bank -> misión diaria
@@ -231,22 +231,30 @@ riesgo excedido -> bloquear recomendación de cuota, no liquidación existente
 - **Adoptado:** una meta activa por bank para evitar objetivos concurrentes incompatibles.
 - **Adoptado:** límites de riesgo son configuración explícita del usuario; sin límite configurado se aplica el cap MVP del 40% de cash, no se inventa una cuota máxima.
 - **Adoptado:** cada liquidación vinculada genera como máximo un `goal_history(event_type=recalculated)` por índice único existente.
-- **Implementado local:** creación/update/cierre/configuración usan RPCs atómicas `SECURITY INVOKER` exclusivas de `service_role`; lecturas BFF usan RLS.
+- **Implementado:** creación/update/cierre/configuración usan RPCs atómicas `SECURITY INVOKER` exclusivas de `service_role`; lecturas BFF usan RLS. Migration remota `20260817160357_implement_goals_and_risk` verificada.
 - **Confirmado:** `remaining=max(target-cash,0)`, días naturales mínimo 1, daily profit exacto a dos decimales y suggested odds exacta a cuatro; target alcanzado produce `0` y `1`.
 - **Confirmado:** completed exige cash >= target; cancelled permite cierre bajo target; reintento no muta.
 - **Confirmado:** creación de ticket valida goal opcional, max odds y pérdida diaria; riesgo jamás altera settlement ya realizado.
 
-### Recomendación y seguimiento — Planificado
+### Recomendaciones, seguimiento y métricas — Implementado local y remotamente en Fase 4J
 
 ```text
-editor|admin -> draft -> published -> feed filtrable
-user -> follow -> recommendation_follows + payload prefill -> revisión manual -> ticket
+editor|admin -> draft -> edit -> published -> feed filtrable -> inactive terminal
+user -> follow(bank propio) -> recommendation_follows + prefill normalizado
+user -> revisión manual -> creación explícita de ticket por flujo SL-12
+user -> metrics(bank propio, rango UTC) -> agregación exclusiva de bets settled
 ```
 
-- **Confirmado:** publicar exige evento y mercado normalizados; feed filtra `pre|live`.
-- **Confirmado:** seguir no crea ticket; solo precarga formulario.
-- **Adoptado:** `inactive` impide nuevos follows y no elimina follows históricos.
-- **Adoptado:** ICP se guarda como JSON versionado; hasta definir su esquema, no participa en decisiones automáticas de riesgo ni ordenación obligatoria.
+- **Confirmado:** `POST /api/recommendations` crea exclusivamente drafts y responde `201`; `PATCH /api/recommendations/{recommendationId}` edita drafts o publicadas, publica drafts o inactiva drafts/publicadas y responde `200`. `inactive` es terminal, no se reactiva, no admite follow y no existe borrado físico.
+- **Confirmado:** publicar exige evento y mercado normalizados. Solo `published` aparece en feed y admite follow.
+- **Confirmado:** ICP visible exacto `{version:1, score: integer 0..100, factors: string[1..20] no vacíos}`. Se informa, pero nunca ordena ni rankea el feed.
+- **Confirmado:** feed ordena estable por `published_at DESC, id DESC`, usa cursor opaco, `limit=20` por defecto y máximo `50`; filtra por `type=pre|live`, `sport` y `leagueId`.
+- **Confirmado:** follow exige bank propio, persiste de forma idempotente por unique `(user_id,recommendation_id)` y devuelve `201` al crear o `200` al repetir con el mismo bank, siempre con la misma identidad y prefill normalizada. Nunca crea ticket, reserva fondos ni escribe ledger.
+- **Confirmado:** métricas exigen bank propio y rango inclusivo de fechas UTC de máximo 366 días. Solo incluyen `status=settled` por `settled_at`; cashout queda excluido.
+- **Confirmado:** cash yield = beneficio del componente financiado con cash / stake cash; operative yield = `sum(profit_amount) / sum(stake_amount)`; win rate ponderado = `won*1 + half_won*0.5` sobre resultados decisivos `won|lost|half_won|half_lost`, excluyendo `void`. Denominador cero produce `0`.
+- **Implementado:** todas las rutas usan cookie BFF. Escrituras de recommendations/follows y RPC de métricas son `SECURITY INVOKER`, ejecutables solo por `service_role`; lecturas conservan RLS y las views tienen privilegios estrictos.
+- **Verificado:** 36 migrations sincronizadas local/remoto hasta `20260817201754_include_incomplete_settled_metrics`; tipos regenerados; rollback SQL de create/publish/follow, idempotencia, inactive y ausencia de bet; constraints validados; residuo de recommendations/follows/events/metric rows igual a cero.
+- **Fuera de alcance:** proveedor deportivo, scraping, ranking por ICP, creación automática de ticket, seguimiento automático de resultados y borrado físico.
 
 ## 5. Máquinas de estado
 
@@ -256,7 +264,7 @@ user -> follow -> recommendation_follows + payload prefill -> revisión manual -
 | Transaction | `solicitada -> aplicada` o `rechazada`. Solo `aplicada` persiste en ledger. Transferencia aplicada crea dos filas; no existe compensación silenciosa. |
 | Bet | `creación atómica -> open -> settled|cashout`; cashout parcial crea otro `open`. `status` expresa ciclo y `result` desenlace. |
 | Goal | `active -> completed|cancelled`. Ambos estados fijan `closed_at`; no se recalcula una meta cerrada. |
-| Recommendation | `draft -> published -> inactive`. Solo `published` se muestra a users y admite follow. |
+| Recommendation | `draft -> published -> inactive` o `draft -> inactive`. `inactive` es terminal. Solo `published` se muestra a users y admite follow; no hay delete físico. |
 
 ## 6. Ownership y permisos
 
@@ -277,6 +285,11 @@ user -> follow -> recommendation_follows + payload prefill -> revisión manual -
 | RPC atómica de bank | `20260728154428_create_banks_with_pockets.sql` | Valida entrada, crea bank, tres pockets, tres asientos iniciales y devuelve saldos; toda la llamada revierte ante error. |
 | RPC atómica de movimientos | `20260803174121_record_cash_transactions.sql` | Bloquea cash, aplica depósito/retiro, inserta ledger y auditoría, y conserva resultado idempotente. |
 | RPC atómica de tickets | `20260816192251_create_bet_with_funding.sql` | Bloquea idempotencia, bank y pockets; crea ticket, legs, reservas y funding; abre el ticket solo al completar todo. |
+| RPCs Fase 4J | `20260817183033_implement_recommendations_and_metrics.sql` | Gestionan lifecycle, follow idempotente y métricas settled-only mediante `SECURITY INVOKER` exclusivo de `service_role`. |
+| Views Fase 4J endurecidas | `20260817183135_harden_recommendation_views.sql` | Aplica privilegios estrictos a feed, vista editorial y fuente trazable de métricas. |
+| Estado de creación de follow | `20260817194604_add_follow_creation_status.sql` | Permite al BFF distinguir creación (`201`) de replay idempotente (`200`). |
+| Atomicidad y métricas completas | `20260817200805_fix_recommendation_atomicity_and_metrics.sql` | Devuelve snapshot de follow desde la transacción e incluye toda bet settled en métricas operativas. |
+| Métricas legacy incompletas | `20260817201754_include_incomplete_settled_metrics.sql` | Mantiene toda bet settled en agregados aunque falten detalles legacy; resultado ausente no es decisivo y profit ausente vale cero. |
 
 No hay cron, webhook de negocio ni integración externa implementados.
 
@@ -291,10 +304,10 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Transferencia cash misma divisa | FR-007, SL-9 | `transactions`, `transaction_idempotencies`, `20260803183644` | Implementado: `/api/banks/{bankId}/transfer`, formulario en detalle bank |
 | Ticket y funding | FR-009, FR-010, SL-12/13 | `bets`, `bet_legs`, `bet_funding`, `bet_idempotencies`, `transactions`; `20260816192251`, `20260816192515` | Implementado: `POST /api/bets`, `/dashboard/bets/new` |
 | Liquidación, cashout y auditoría | FR-011..013, SL-14..16 | `bets`, `bet_cashouts`, `transactions`, `audit_logs`, idempotencias; `20260817045500`, `20260817045542` | Implementado: `/api/bets/{id}/settle|cashout`, `/api/audit`, detalle ticket |
-| Catálogo manual y normalizado | FR-014..016, SL-18..20 | tablas `catalog_*` | Futuro: `/api/catalog/*` |
-| Meta y riesgo | FR-017..021, SL-22..26 | `goals`, `goal_history`, `risk_limits`; `20260817160357` | Implementado: `/api/goals/*`, `/api/risk-limits`, UI goals y recálculo settlement |
-| Recomendación y follow | FR-022..024, SL-28..30 | `recommendations`, `recommendation_follows` | Futuro: `/api/recommendations/*` |
-| Métricas | FR-025, SL-31 | datos liquidados; sin vista actual | Futuro: `/api/metrics/overview` |
+| Catálogo manual y normalizado | FR-014..016, SL-18..20 | tablas `catalog_*`; migrations remotas `20260816195927`..`20260816205121` | Implementado: `/api/catalog/*`, `/api/admin/catalog/*` |
+| Meta y riesgo | FR-017..021, SL-22..26 | `goals`, `goal_history`, `risk_limits`; `20260817160357` local/remota | Implementado: `/api/goals/*`, `/api/risk-limits`, UI goals y recálculo settlement |
+| Recomendación y follow | FR-022..024, SL-28..30 | `recommendations`, `recommendation_follows`; `20260817183033`, `20260817183135`, `20260817194604` | Implementado: `/api/recommendations/*`, `/api/admin/recommendations`, UI feed/editorial |
+| Métricas | FR-025, SL-31 | `bets`, `bet_funding`; `20260817183033`, `20260817183135` | Implementado: `/api/metrics/overview`, UI métricas |
 
 ## 9. Decisiones confirmadas
 
@@ -326,6 +339,9 @@ No hay cron, webhook de negocio ni integración externa implementados.
 | Misión diaria = `(target_amount - cash actual) / días naturales restantes`; creación o recálculo se rechaza si resultado monetario tiene más de dos decimales | Adoptada | Fórmula reproducible sin redondeo | Goals/Risk |
 | Límite mínimo activo: stake máximo 40% de cash; cuota máxima y pérdida diaria son opt-in del usuario | Adoptada | Evita sugerencias inseguras por defecto | Goals/Risk |
 | ICP v1 = `{ version: 1, score: 0..100, factors: string[] }`; se ordena por `published_at`, no por score | Adoptada | Hace el feed explicable sin ranking opaco | Recommendations |
+| Feed published-only con orden `published_at DESC,id DESC`, cursor y límite 20/50 | Adoptada | Evita fugas y paginación inestable | Recommendations |
+| Follow persistido único exige bank propio y solo devuelve prefill | Adoptada | Mantiene trazabilidad sin crear tickets implícitos | Recommendations |
+| Métricas settled-only usan rango UTC inclusivo y fórmulas cerradas | Adoptada | Excluye cashout de métricas; void permanece en settledCount pero no en win rate decisivo | Metrics |
 | Catálogo MVP es local y curado; ante ausencia de dato se usa entrada manual. Integración externa queda fuera del MVP actual | Adoptada | Elimina dependencia externa no implementada | Catalog |
 | Stake level `0.1..20.0` usa `cash × (level/20) × 0.40`; resultados con más de dos decimales se rechazan | Adoptada | Hace cálculo reproducible sin redondeo | Bets Fase 4G |
 | Legs distinguen referencias normalizadas y manuales mediante discriminante obligatorio | Adoptada | Evita inferir semántica desde IDs nulos | Bets Fase 4G |
@@ -333,15 +349,15 @@ No hay cron, webhook de negocio ni integración externa implementados.
 
 ### Decisiones pendientes
 
-No quedan decisiones funcionales abiertas en Fase 4H. Las migrations y RPCs están aplicadas; las cuatro bets legacy permanecen sin borrado ni backfill. Playwright ejecutó liquidación y cashout reales con datos aislados eliminados al finalizar.
+No quedan decisiones funcionales abiertas en Fases 4H, 4I o 4J. Fase 4J está implementada y aplicada local/remotamente. La verificación específica 4J y la suite E2E completa pasan; evidencia registrada en `.context/reports/phase-4j-verification.md`.
 
 ## 11. Informe de validación
 
 - Plantilla sustituida sin marcadores de trabajo incompleto ni texto genérico.
-- Todas las entidades obligatorias existen en schema local y remoto; su flujo queda marcado implementado o futuro.
+- Las tablas obligatorias y el endurecimiento 4J existen en schema remoto; cada flujo queda marcado implementado.
 - Cada flujo declara estado.
 - Hechos, reglas confirmadas, decisiones adoptadas y límites no resueltos están separados.
-- SL-12..SL-16, SRS/OpenAPI y este mapa quedan reconciliados con la implementación Fase 4H.
+- SL-28..SL-31, SRS/OpenAPI y este mapa quedan reconciliados con la evidencia final Fase 4J sin atribuir ejecución manual completa de ATP.
 
 ## 12. Reconciliación documental
 

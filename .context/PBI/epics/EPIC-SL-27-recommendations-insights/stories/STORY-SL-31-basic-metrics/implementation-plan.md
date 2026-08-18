@@ -1,97 +1,44 @@
-# Implementation Plan: STORY-SL-31 - Metricas basicas
+# Implementation Plan - SL-31
+
+**Estado:** Implementado y verificado en Fase 4J
 
 ## Fuentes
 
-- Story: `story.md`
-- Acceptance test plan: `acceptance-test-plan.md`
-- Roadmap Fase 2A: `.context/dev-roadmap.md`
-- Gap analysis Fase 2A: `.context/reports/phase-2a-gap-analysis.md`
-- SRS: `.context/SRS/functional-specs.md` FR-025
-- API contract: `.context/SRS/api-contracts.yaml` `/api/metrics/overview`
+- `story.md`, `acceptance-test-plan.md`
+- `.context/SRS/functional-specs.md` FR-025
+- `.context/SRS/api-contracts.yaml`
+- `.context/reports/phase-4h-verification.md`
 
-## Estado Actual Verificado
+## Baseline Verificado
 
-- No existe `src/app/api/metrics/overview/route.ts`.
-- Dashboard muestra `Yield operativo` hardcodeado.
-- `bets` no tiene result/profit/return fields suficientes para metrics.
-- No hay views/functions de metrics ni formulas cerradas.
-- Fase 2A marco SL-31 blocked por settlement, ledger y operative balance.
+- Settlement Fase 4H está implementado y aplicado remotamente; `result`, `profit_amount`, `settled_at` y funding trazable existen.
+- Endpoint, RPC y UI de métricas Fase 4J están implementados local/remotamente.
 
-## Dependencias
+## Implementación Completada
 
-- Depende de Identity para usuario autenticado.
-- Depende de Banks SL-7/SL-8 para bank y operative balance.
-- Depende de Bets SL-14 para apuestas liquidadas con profit/return.
-- Depende de SL-16 audit/ledger para trazabilidad.
-- No depende de recommendations salvo reporting futuro.
+1. RPC `get_metrics_overview` es `SECURITY INVOKER`, `search_path=''`, ejecutable solo por `service_role`; valida bank propio y rango UTC máximo 366 días.
+2. Fuente trazable consulta todas las `bets.status='settled'` por rango inclusivo; usa `profit_amount` y stake para rendimiento operativo, y deriva por separado componentes cash desde funding disponible.
+3. RPC calcula cash/operative yield y win rate decisivo, excluye cashout/void según contrato y devuelve cero ante denominador cero.
+4. Cookie BFF y UI implementan filtros/KPIs sin reescribir ledger.
 
-## Alcance
+## Archivos Implementados
 
-- Calcular yield cash, yield operativo y win rate por bank y rango de fechas.
-- Mostrar ceros o empty state cuando no hay apuestas liquidadas.
-- Validar rango de fechas.
-- Mantener fuera de alcance ROI avanzado/exportaciones.
+- `supabase/migrations/20260817183033_implement_recommendations_and_metrics.sql`
+- `supabase/migrations/20260817183135_harden_recommendation_views.sql`
+- `supabase/migrations/20260817200805_fix_recommendation_atomicity_and_metrics.sql`
+- `supabase/migrations/20260817201754_include_incomplete_settled_metrics.sql`
+- `src/lib/metrics/{schemas,service}.ts`
+- `src/app/api/metrics/overview/route.ts`
+- `src/components/metrics/{metrics-overview,metrics-filters}.tsx`
+- OpenAPI runtime schemas.
 
-## Archivos a Tocar
+## Seguridad Y Precisión
 
-- `src/app/api/metrics/overview/route.ts` - endpoint metrics.
-- `src/lib/metrics/schemas.ts` - query/response schemas.
-- `src/lib/metrics/calculations.ts` - formulas de yield y win rate.
-- `src/lib/metrics/service.ts` - query de bets/ledger/views.
-- `src/components/metrics/metrics-overview.tsx` - UI de KPIs.
-- `src/components/metrics/metrics-filters.tsx` - bank/range filters.
-- `src/app/dashboard/page.tsx` o `src/app/dashboard/metrics/page.tsx` - integrar metrics reales.
-- `src/lib/openapi/schemas/metrics.ts` - schemas OpenAPI.
+- `authenticated` no ejecuta RPC directamente; ownership se valida también dentro de SQL.
+- No usar cache en MVP.
+- Ratios usan precisión numérica del servidor y contrato consistente; nunca reescriben ledger.
 
-## DB/RLS Necesarios
+## Verificación Final
 
-- Migration-first: requiere settlement fields/views/functions aun no existentes para metrics confiables, salvo que se calcule todo en service sobre schema ampliado.
-- Requiere settlement fields (`result`, `profit_amount`, `return_amount`, `settled_at`) de SL-14.
-- Requiere operative balance formula de SL-8.
-- Indices por `bank_id`, `settled_at`, `status/result`.
-- RLS: metrics solo sobre banks/bets propios; views deben respetar ownership.
-
-## API Necesaria
-
-- `GET /api/metrics/overview?bankId=&from=&to=`.
-- OpenAPI actual solo declara `bankId`; requiere contrato update si se agregan fechas.
-- Success: `200` con `yieldCash`, `yieldOperative`, `winRate`, counts y range.
-- Errors: `400` date range invalido, `403` bank ajeno, `401`.
-
-## UI Necesaria
-
-- KPI cards para cash yield, operative yield y win rate.
-- Filtros bank y date range.
-- Empty state para sin apuestas liquidadas.
-- `data-testid`: `metricsOverview`, `bank_metrics_select`, `date_range_filter`, `yield_cash_value`, `yield_operative_value`, `win_rate_value`, `metrics_empty_state`, `metrics_range_error`.
-
-## Validaciones Zod
-
-- `bankId`: UUID.
-- `from`, `to`: ISO date opcionales si se agrega rango.
-- `to >= from`.
-- Definir max rango y timezone.
-
-## Tests Minimos
-
-- Unit: yield cash, yield operativo y win rate con fixtures.
-- Unit: date range invalido.
-- API: metrics con apuestas liquidadas conocidas.
-- API: sin apuestas devuelve ceros/empty model.
-- API/RLS: bank ajeno bloqueado.
-- E2E: usuario filtra bank/rango y ve KPIs.
-
-## Criterios de Cierre
-
-- AC SL-31 cubiertos: ver metrics, sin apuestas, rango invalido.
-- Formulas exactas documentadas con ejemplos.
-- Metrics solo incluyen apuestas liquidadas dentro del rango.
-- Supabase types actualizados si cambia schema/view.
-- `bun run repo:check` pasa.
-
-## Decisiones Abiertas
-
-- Formulas exactas de yield cash/yield operativo/win rate.
-- Estados que cuentan como liquidados.
-- Rango maximo, timezone y cache TTL.
-- Calculo en DB view/function vs service TypeScript.
+- Unit, RPC/grants, advisors, repo checks y E2E específico de un settled cash won pasan.
+- Los 12 casos ATP no se ejecutaron manualmente uno a uno; gaps numéricos y de límites constan en `.context/reports/phase-4j-verification.md`.

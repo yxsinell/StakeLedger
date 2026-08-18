@@ -1,174 +1,55 @@
-# As a user, I want a feed filterable by pre-match and live so that I can browse recommendations
+# SL-29 - Feed filtrable de recomendaciones
 
-**Jira Key:** SL-29
-**Epic:** EPIC-SL-27 (Recommendations and Insights)
-**Priority:** Medium
-**Story Points:** 2
-**Status:** To Do
-**Assignee:** null
-
----
+- **Jira Key:** SL-29
+- **Epic:** EPIC-SL-27
+- **Estado documental:** Implementado
+- **Estado de ejecución:** Cerrado con cobertura automatizada relevante; ATP manual completo no ejecutado
 
 ## User Story
 
-**As a** usuario
-**I want to** ver un feed filtrable por pre-match y live
-**So that** pueda navegar recomendaciones
+Como usuario autenticado, quiero navegar un feed filtrable y estable para encontrar recomendaciones publicadas sin exposición editorial ni ranking opaco.
 
----
+## Alcance
 
-## Scope
+- Mostrar exclusivamente recommendations `published`.
+- Filtrar opcionalmente por `type=pre|live`, `sport` y `leagueId`.
+- Ordenar siempre por `published_at DESC, id DESC`.
+- Paginar con cursor opaco, `limit=20` por defecto y máximo `50`.
+- Mostrar ICP completo como información visible, nunca como ranking.
 
-<!-- Jira Field: customfield_10401 (⛳SCOPE) -->
+## Acceptance Criteria
 
-### In Scope
+### AC1 - Published-only
 
-- Lista de recomendaciones en feed
-- Filtro por tipo (pre/live)
-- Filtros opcionales por sport y league
-- Orden por fecha
+Usuario común nunca recibe `draft` ni `inactive`, aunque conozca IDs o manipule filtros/cursor.
 
-### Out of Scope
+### AC2 - Filtros
 
-- Notificaciones push
-- Personalizacion avanzada por usuario
+Cada filtro y combinación devuelven solo coincidencias. `leagueId` es UUID; type y cursor inválidos responden `400`. Cambiar filtros reinicia cursor.
 
----
+### AC3 - Orden estable
 
-## Acceptance Criteria (Gherkin format)
+Resultados usan `published_at DESC,id DESC`; empate de timestamp se resuelve por id descendente. ICP no afecta posición.
 
-<!-- Jira Field: customfield_10201 (✅ Acceptance Criteria) -->
+### AC4 - Cursor
 
-### Scenario 1: Filtrar por pre-match
+Primera página usa 20 por defecto. `limit` acepta 1..50. `nextCursor` es opaco, nullable y continúa después del último par `(published_at,id)` sin offset.
 
-- **Given:** un usuario en el feed
-- **When:** aplica filtro pre-match
-- **Then:** el sistema muestra solo recomendaciones pre-match
+### AC5 - Estados UI
 
-### Scenario 2: Filtrar por live
+Loading, error, empty state y continuación de páginas son verificables; filtros vacíos no inventan contenido.
 
-- **Given:** un usuario en el feed
-- **When:** aplica filtro live
-- **Then:** el sistema muestra solo recomendaciones live
+## Fuera De Alcance
 
-### Scenario 3: Filtrar por deporte o liga
+- Feed público anónimo, notificaciones y personalización.
+- Provider, scraping, ranking ICP y offset pagination.
 
-- **Given:** un usuario en el feed
-- **When:** aplica filtro por sport y/o league
-- **Then:** el sistema muestra recomendaciones del filtro seleccionado
+## Dependencias
 
-### Scenario 4: Sin resultados
+- SL-28 y catálogo normalizado.
 
-- **Given:** un usuario aplica un filtro
-- **When:** no hay recomendaciones
-- **Then:** el sistema muestra estado vacio
+## Evidencia De Cierre
 
----
-
-## Business Rules
-
-<!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
-
-- Filtros validos: pre, live
-- Filtros sport/league opcionales
-- Orden por fecha desc
-
----
-
-## Workflow
-
-<!-- Jira Field: customfield_10500 (🧬WORKFLOW) - Opcional -->
-
-1. Usuario abre feed
-2. Aplica filtro
-3. Sistema muestra resultados
-
----
-
-## Mockups/Wireframes
-
-<!-- Jira Field: customfield_10400 (🎴MOCKUP) - Opcional -->
-
-- No definido
-
----
-
-## Technical Notes
-
-### Frontend
-
-- Filtros y estados vacio/loading
-
-### Backend
-
-- Paginacion del feed
-- Indices por tipo y fecha
-
-### Database
-
-- Recommendations
-- **IMPORTANTE:** No hardcodear SQL. Usar Supabase MCP
-
-### External Services
-
-- Ninguno
-
----
-
-## Dependencies
-
-### Blocked By
-
-- SL-28 (publicacion de recomendaciones)
-
-### Blocks
-
-- SL-30 (seguir recomendacion)
-
-### Related Stories
-
-- SL-28
-- SL-30
-
----
-
-## Definition of Done
-
-- [ ] Codigo implementado y funcionando
-- [ ] Tests unitarios (coverage > 80%)
-- [ ] Tests de integracion (API + DB)
-- [ ] Tests E2E (Playwright)
-- [ ] Code review aprobado (2 reviewers)
-- [ ] Documentacion actualizada (README, API docs)
-- [ ] Deployed to staging
-- [ ] QA testing passed
-- [ ] Acceptance criteria validated
-- [ ] No critical/high bugs open
-
----
-
-## Testing Strategy
-
-See: `.context/PBI/epics/EPIC-SL-27-recommendations-insights/stories/STORY-SL-29-feed-filter/acceptance-test-plan.md`
-
-**Test Cases Expected:** 6+ detailed test cases covering:
-
-- Happy path
-- Error scenarios
-- Edge cases
-- Security validations
-
----
-
-## Notes
-
-- Definir paginacion por defecto
-
----
-
-## Related Documentation
-
-- **Epic:** `.context/PBI/epics/EPIC-SL-27-recommendations-insights/epic.md`
-- **PRD:** `.context/PRD/mvp-scope.md`
-- **SRS:** `.context/SRS/functional-specs.md` (FR-023)
-- **API Contracts:** `.context/SRS/api-contracts.yaml`
+- Endpoint, índice, RLS published-only y UI están implementados mediante migrations Fase 4J sincronizadas.
+- Unit tests cubren cursor/filtros; Playwright 4J valida filtro y empty state. Cobertura exhaustiva ATP manual no fue ejecutada.
+- Cobertura y gaps: `.context/reports/phase-4j-verification.md`.

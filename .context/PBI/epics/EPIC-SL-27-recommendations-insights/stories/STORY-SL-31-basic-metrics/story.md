@@ -1,166 +1,64 @@
-# As a user, I want to view basic metrics (cash yield, operational yield, win rate) so that I can track performance
+# SL-31 - Métricas básicas de rendimiento
 
-**Jira Key:** SL-31
-**Epic:** EPIC-SL-27 (Recommendations and Insights)
-**Priority:** Medium
-**Story Points:** 3
-**Status:** To Do
-**Assignee:** null
-
----
+- **Jira Key:** SL-31
+- **Epic:** EPIC-SL-27
+- **Estado documental:** Implementado
+- **Estado de ejecución:** Cerrado con cobertura automatizada relevante; ATP manual completo no ejecutado
 
 ## User Story
 
-**As a** usuario
-**I want to** ver metricas basicas (yield cash, yield operativo, win rate)
-**So that** pueda seguir mi rendimiento
+Como usuario, quiero consultar métricas reproducibles por bank y rango UTC para evaluar rendimiento liquidado sin mezclar cashout ni resultados no decisivos.
 
----
+## Alcance
 
-## Scope
+- Exigir bank propio y fechas `from|to` UTC inclusivas.
+- Aceptar máximo 366 días y rechazar `from > to`.
+- Incluir únicamente bets `status=settled` por `settled_at` dentro del rango.
+- Excluir cashout; `void` cuenta en settledCount pero no en decisivos/win rate.
+- Devolver cero cuando cualquier denominador sea cero.
 
-<!-- Jira Field: customfield_10401 (⛳SCOPE) -->
+## Fórmulas
 
-### In Scope
+- `cashYield = sum(cash funding component profit) / sum(cash-funded stake)`.
+- `operativeYield = sum(profit_amount) / sum(stake_amount)`.
+- `winRate = (count(won) + 0.5 * count(half_won)) / count(won|lost|half_won|half_lost)`.
 
-- Calculo de yield cash y yield operativo
-- Calculo de win rate
-- Vista de metricas por bank y rango de fechas
+## Acceptance Criteria
 
-### Out of Scope
+### AC1 - Dataset exacto
 
-- Metricas avanzadas (ROI por mercado)
-- Exportaciones
+Solo bets propias del bank con `status=settled` y `settled_at` dentro de `[from 00:00:00Z, to+1day 00:00:00Z)` participan.
 
----
+### AC2 - Yield cash
 
-## Acceptance Criteria (Gherkin format)
+Numerador usa beneficio atribuible al componente cash y denominador stake financiado con cash; bonus/freebet no contaminan ambos componentes.
 
-<!-- Jira Field: customfield_10201 (✅ Acceptance Criteria) -->
+### AC3 - Yield operativo
 
-### Scenario 1: Ver metricas
+Usa `profit_amount` y stake total de todas las bets settled incluidas.
 
-- **Given:** un usuario con apuestas registradas
-- **When:** accede a la vista de metricas
-- **Then:** el sistema muestra yield cash, yield operativo y win rate
+### AC4 - Win rate ponderado
 
-### Scenario 2: Sin apuestas
+Won pesa 1, half_won 0.5, lost/half_lost 0; void y cashout quedan fuera del denominador decisivo.
 
-- **Given:** un usuario sin apuestas
-- **When:** accede a metricas
-- **Then:** el sistema muestra ceros o estado vacio
+### AC5 - Validación y ownership
 
-### Scenario 3: Rango invalido
+Rango inválido responde `400`; bank ajeno/inexistente `404` genérico. Rango sin settled devuelve métricas y agregados en cero.
 
-- **Given:** un usuario en la vista de metricas
-- **When:** selecciona un rango invalido
-- **Then:** el sistema muestra error de validacion
+### AC6 - Seguridad
 
----
+Cookie BFF invoca RPC de métricas `SECURITY INVOKER` exclusiva de `service_role`; no existe lectura agregada cross-owner.
 
-## Business Rules
+## Fuera De Alcance
 
-<!-- Jira Field: customfield_10202 (🚩BUSINESS RULES SPEC) - Opcional -->
+- Caché, exportación, ranking, ROI por mercado y métricas de cashout.
 
-- date_range valido
-- Metricas calculadas sobre apuestas liquidadas
+## Dependencias
 
----
+- Fase 4H settlement implementada remotamente.
 
-## Workflow
+## Evidencia De Cierre
 
-<!-- Jira Field: customfield_10500 (🧬WORKFLOW) - Opcional -->
-
-1. Usuario selecciona bank y rango
-2. Sistema calcula metricas
-3. Sistema muestra resultados
-
----
-
-## Mockups/Wireframes
-
-<!-- Jira Field: customfield_10400 (🎴MOCKUP) - Opcional -->
-
-- No definido
-
----
-
-## Technical Notes
-
-### Frontend
-
-- Vista de metricas con filtros de rango
-
-### Backend
-
-- Calcular yield sobre ledger y settlement
-- Cache por rango de fechas
-
-### Database
-
-- Ledger y Bets
-- **IMPORTANTE:** No hardcodear SQL. Usar Supabase MCP
-
-### External Services
-
-- Ninguno
-
----
-
-## Dependencies
-
-### Blocked By
-
-- SL-14 (liquidacion)
-
-### Blocks
-
-- Ninguna
-
-### Related Stories
-
-- SL-28
-- SL-29
-
----
-
-## Definition of Done
-
-- [ ] Codigo implementado y funcionando
-- [ ] Tests unitarios (coverage > 80%)
-- [ ] Tests de integracion (API + DB)
-- [ ] Tests E2E (Playwright)
-- [ ] Code review aprobado (2 reviewers)
-- [ ] Documentacion actualizada (README, API docs)
-- [ ] Deployed to staging
-- [ ] QA testing passed
-- [ ] Acceptance criteria validated
-- [ ] No critical/high bugs open
-
----
-
-## Testing Strategy
-
-See: `.context/PBI/epics/EPIC-SL-27-recommendations-insights/stories/STORY-SL-31-basic-metrics/acceptance-test-plan.md`
-
-**Test Cases Expected:** 6+ detailed test cases covering:
-
-- Happy path
-- Error scenarios
-- Edge cases
-- Security validations
-
----
-
-## Notes
-
-- Definir formulas exactas de yield
-
----
-
-## Related Documentation
-
-- **Epic:** `.context/PBI/epics/EPIC-SL-27-recommendations-insights/epic.md`
-- **PRD:** `.context/PRD/mvp-scope.md`
-- **SRS:** `.context/SRS/functional-specs.md` (FR-025)
-- **API Contracts:** `.context/SRS/api-contracts.yaml`
+- RPC, endpoint y UI implementados mediante migrations Fase 4J sincronizadas.
+- Unit tests cubren servicio/schema; Playwright 4J valida un settled cash won trazable y sus ratios exactos.
+- Cobertura y gaps: `.context/reports/phase-4j-verification.md`.

@@ -1,96 +1,47 @@
-# Implementation Plan: STORY-SL-28 - Publicar recomendaciones
+# Implementation Plan - SL-28
+
+**Estado:** Implementado y verificado en Fase 4J
 
 ## Fuentes
 
-- Story: `story.md`
-- Acceptance test plan: `acceptance-test-plan.md`
-- Roadmap Fase 2A: `.context/dev-roadmap.md`
-- Gap analysis Fase 2A: `.context/reports/phase-2a-gap-analysis.md`
-- SRS: `.context/SRS/functional-specs.md` FR-022
-- API contract: `.context/SRS/api-contracts.yaml` `/api/recommendations`
+- `story.md`, `acceptance-test-plan.md`
+- `.context/business-data-map.md`
+- `.context/SRS/functional-specs.md` FR-022
+- `.context/SRS/api-contracts.yaml`
 
-## Estado Actual Verificado
+## Baseline Verificado
 
-- No existe `src/app/api/recommendations/route.ts`.
-- `src/types/supabase.ts` no contiene `recommendations` ni normalized events/markets.
-- Dashboard muestra recomendaciones hardcodeadas.
-- No existe definicion de ICP ni publicacion admin/editor.
-- Fase 2A marco SL-28 como blocked por catalogo normalizado e ICP.
+- Tabla remota `recommendations` endurecida con RLS, lifecycle y RPCs de aplicación.
+- RBAC y catálogo normalizado ya están implementados.
+- 36 migrations locales/remotas están sincronizadas hasta `20260817201754_include_incomplete_settled_metrics`.
 
-## Dependencias
+## Implementación Completada
 
-- Depende de Identity y RBAC SL-5 para admin/editor.
-- Depende de Catalog SL-18/SL-20 para evento normalizado.
-- Depende indirectamente de Banks/Bets para que follow pueda crear prefill seguro en SL-30.
-- No debe publicarse con eventos unnormalized.
+1. Migrations Fase 4J ajustan recommendations para referencias normalizadas, ICP JSONB validado, lifecycle y timestamps sin delete/backfill destructivo.
+2. RPCs `SECURITY INVOKER`, `search_path=''`, implementan create/update/publish/inactivate con `EXECUTE` solo para `service_role`.
+3. `authenticated` carece de DML directo; RLS y views separan lectura published y editorial.
+4. Schemas Zod, servicio, cookie BFF y UI editorial restringen `POST` a creación `draft` con `201`; `PATCH` concentra edit/publish/inactivate con `200`, transiciones terminales y errores verificables.
+5. OpenAPI runtime/estático y tipos Supabase quedaron sincronizados.
 
-## Alcance
+## Archivos Implementados
 
-- Crear recommendation con evento normalizado, market, odds, type `pre|live` e ICP.
-- Validar permisos admin/editor.
-- Publicar recommendation activa en feed.
-- Mantener fuera de alcance publicacion masiva y recomendaciones con datos no normalizados.
+- `supabase/migrations/20260817183033_implement_recommendations_and_metrics.sql`
+- `supabase/migrations/20260817183135_harden_recommendation_views.sql`
+- `supabase/migrations/20260817195657_validate_recommendation_constraints.sql`
+- `supabase/migrations/20260817200805_fix_recommendation_atomicity_and_metrics.sql`
+- `supabase/migrations/20260817201754_include_incomplete_settled_metrics.sql`
+- `src/lib/recommendations/{schemas,service}.ts`
+- `src/app/api/recommendations/**/route.ts`
+- `src/components/recommendations/*`
+- `src/lib/openapi/schemas/recommendations.ts`
 
-## Archivos a Tocar
+## Reglas Cerradas
 
-- `src/app/api/recommendations/route.ts` - `GET` feed base y `POST` publish.
-- `src/lib/recommendations/schemas.ts` - create/list schemas.
-- `src/lib/recommendations/service.ts` - publish, list y permission checks.
-- `src/lib/recommendations/icp.ts` - ICP validation/scoring.
-- `src/lib/catalog/service.ts` - validate normalized event.
-- `src/components/recommendations/recommendation-form.tsx` - admin publish UI.
-- `src/app/dashboard/admin/recommendations/page.tsx` - admin page.
-- `src/lib/openapi/schemas/recommendations.ts` - schemas OpenAPI.
+- ICP exacto visible; nunca scoring/ranking.
+- Draft editable, published editable, inactive terminal.
+- Sin delete físico, provider, scraping ni ticket automático.
 
-## DB/RLS Necesarios
+## Verificación Final
 
-- Migration-first: requiere `recommendations`, normalized `events/markets` o catalog reference fields.
-- Requiere ICP columns/schema JSON con validacion aprobada.
-- Requiere status (`draft|published|inactive`) y type (`pre|live`).
-- Unique/duplicate policy para mismo event/market/type pendiente.
-- RLS: lectura de published para usuarios autenticados; insert/update solo admin/editor.
-
-## API Necesaria
-
-- `POST /api/recommendations` con `{ eventId, market, odds, type, icp }`.
-- `GET /api/recommendations` para feed base (extendido en SL-29).
-- Success create: `201` con `RecommendationResponse`.
-- Errors: `400` ICP/event/market/odds invalido, `403` sin rol, `409` duplicado si se aprueba.
-
-## UI Necesaria
-
-- Formulario admin/editor con autocomplete de evento normalizado, market, odds, type e ICP.
-- Bloquear eventos unnormalized con mensaje claro.
-- `data-testid`: `recommendationForm`, `recommendation_event_select`, `recommendation_market_input`, `recommendation_odds_input`, `recommendation_type_select`, `icp_score_input`, `publish_recommendation_button`, `unnormalized_event_error`.
-
-## Validaciones Zod
-
-- `eventId`: UUID de evento normalizado.
-- `market`: string trim, min 1.
-- `odds`: number finite, > 1.0.
-- `type`: enum `pre|live`.
-- `icp`: objeto/campos requeridos pendientes de definicion.
-
-## Tests Minimos
-
-- Unit: ICP completo/incompleto y odds invalidas.
-- API: admin/editor publica recommendation normalizada.
-- API: evento unnormalized bloqueado sin insert.
-- API/RBAC: user comun recibe `403`.
-- API: duplicado segun politica aprobada.
-- E2E: admin publica y aparece en feed.
-
-## Criterios de Cierre
-
-- AC SL-28 cubiertos: publicacion exitosa, evento no normalizado, usuario sin permisos.
-- ICP definido con campos obligatorios y tests.
-- Publicacion no acepta datos unnormalized.
-- Supabase types actualizados si cambia schema.
-- `bun run repo:check` pasa.
-
-## Decisiones Abiertas
-
-- Campos ICP requeridos y rangos.
-- Duplicado: rechazar, versionar o actualizar.
-- Modelo normalized event/market.
-- Admin vs editor para publicar y editar.
+- RLS/grants/advisors, OpenAPI, unit tests, SQL rollback, repo checks y E2E específico 4J pasan.
+- Los 12 casos ATP no se ejecutaron manualmente uno a uno; cobertura y gaps están en `.context/reports/phase-4j-verification.md`.

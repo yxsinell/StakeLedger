@@ -1,6 +1,6 @@
 # Master Implementation Plan
 
-> Actualizado: 2026-08-16. Este plan parte del estado verificable, no de la planificación histórica.
+> Actualizado: 2026-08-17. Este plan parte del estado verificable, no de la planificación histórica.
 
 ## Guardrails
 
@@ -16,8 +16,8 @@
 | Business Data Map | Implementado y canónico para reglas de dominio. |
 | Auth | BFF y UI implementados; perfil automático activo. |
 | Banks | RPC atómica, APIs, UI y saldo operativo implementados. |
-| DB/RLS | 21 migrations locales y remotas sincronizadas; movimientos y reservas financieras solo mediante RPC con ownership e idempotencia. |
-| API | Transferencias y tickets implementados mediante BFF y RPC. Catálogo, metas, recomendaciones y métricas permanecen futuros. |
+| DB/RLS | 36 migrations locales y remotas sincronizadas hasta `20260817201754_include_incomplete_settled_metrics`; operaciones sensibles solo mediante RPC con ownership e idempotencia. |
+| API | Transferencias, tickets, settlement, catálogo, metas, recomendaciones y métricas implementados mediante BFF/RPC. |
 | Seguridad | Leaked password protection desactivada; GraphQL y SECURITY DEFINER documentados como postura pendiente. |
 
 ## Estado de fase exacto
@@ -40,13 +40,13 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 
 | Dominio | Estado | Objetivo |
 | --- | --- | --- |
-| RBAC | Auth implementada | Administración de roles y permisos de editor/admin. |
-| Catálogo | RBAC | Catálogo local, entrada manual y alias. |
+| RBAC | Implementado local/remoto | Administración de roles y permisos de editor/admin. |
+| Catálogo | Implementado local/remoto | Catálogo local, entrada manual y alias. |
 | Bets | Implementado Fase 4G; validación manual pendiente | Tickets, financiación y reservas. |
 | Settlement | Implementado Fase 4H | Retornos por pocket, cashout cash-only y auditoría append-only. |
-| Goals | Implementado local Fase 4I | Metas, riesgo y recálculo atómico; pendiente aplicar migration y verificar remoto. |
-| Recommendations | RBAC, catálogo, bets | Feed y prefill sin creación implícita de ticket. |
-| Metrics | Settlement | Métricas derivadas trazables. |
+| Goals | Implementado local/remoto Fase 4I | Metas, riesgo y recálculo atómico verificados. |
+| Recommendations | Implementado local/remoto Fase 4J | Lifecycle editorial, feed published-only y prefill sin creación implícita de ticket. |
+| Metrics | Implementado local/remoto Fase 4J | Métricas settled-only derivadas mediante RPC interna. |
 
 ## Definition Of Ready
 
@@ -71,10 +71,21 @@ SL-5 no bloquea SL-10 ni SL-9: sus operaciones son siempre del titular. Sí bloq
 - Migrations remotas: `20260817045500_implement_settlement_cashout_audit` y `20260817045542_index_settlement_cashout_references`.
 - Legacy se conserva y permanece no liquidable sin reservas modernas.
 
-## Fase 4I implementada localmente
+## Fase 4I implementada local y remotamente
 
 - SL-22/23: creación, update, misión diaria exacta, progreso, history y UI real.
 - SL-24: vínculo opcional `bets.goal_id` y recálculo dentro de settlement con deduplicación por bet.
 - SL-25: cap fijo 40%, max odds/max daily loss opt-in, API de configuración y alternativas sin ajuste automático.
 - SL-26: cierre explícito completed/cancelled con confirmación, history, audit y estado final.
 - Migration `20260817160357_implement_goals_and_risk.sql` aplicada remotamente; tipos Supabase regenerados y verificados.
+
+## Fase 4J implementada local y remotamente
+
+- SL-28: `POST` crea solo `draft`; `PATCH` edita, publica o inactiva; ICP v1 visible, `inactive` terminal y sin delete físico.
+- SL-29: feed solo published, filtros `type|sport|leagueId`, orden estable y cursor 20/50.
+- SL-30: follow persistido e idempotente con bank propio; `201` al crear, `200` al repetir con mismo bank, prefill normalizada y cero creación de ticket.
+- SL-31: métricas settled-only por bank/rango UTC inclusivo máximo 366 días, con fórmulas cerradas.
+- Seguridad: cookie BFF; escrituras/RPC de métricas `SECURITY INVOKER` solo `service_role`; lectura RLS.
+- Migrations Fase 4J aplicadas y reconciliadas hasta `20260817201754_include_incomplete_settled_metrics`; total local/remoto: 36. Tipos Supabase regenerados.
+- Evidencia: 84 unit tests/222 assertions PASS, `bun run repo:check` PASS, `git diff --check` PASS, SQL rollback y seguridad PASS, suite Playwright 4I/4J PASS 2/2 en 53.3 s y residuo 4J cero.
+- Suite E2E completa acreditada: Fases 4I y 4J pasan 2/2. Los ATP manuales completos no se ejecutaron uno a uno.

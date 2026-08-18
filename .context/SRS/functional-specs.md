@@ -1,7 +1,7 @@
 # Functional Specs - StakeLedger
 
-**Fecha:** 2026-08-16
-**Version:** 1.1
+**Fecha:** 2026-08-17
+**Version:** 1.2
 **Autor:** Equipo StakeLedger
 
 ---
@@ -192,31 +192,38 @@
 ## FR-022: El sistema debe permitir publicar recomendaciones normalizadas
 
 - **Relacionado a:** EPIC-SL-06, US 6.1
-- **Input:** event_id, market, odds, type, icp
-- **Processing:** validar normalizacion, publicar en feed
-- **Output:** recommendation_id
-- **Validations:** role admin/editor
+- **Input:** `POST /api/recommendations` recibe `status=draft`, `eventId`, `marketId`, `selection`, `odds`, `type=pre|live`, `icp={version:1,score,factors}`; `PATCH /api/recommendations/{recommendationId}` recibe campos editables o transición de estado
+- **Processing:** cookie BFF; `POST` crea exclusivamente draft; `PATCH` edita draft/publicada, publica draft o inactiva draft/publicada mediante RPCs `SECURITY INVOKER` exclusivas de `service_role`
+- **Output:** `POST` devuelve `201`; `PATCH` devuelve `200`; ambos exponen recomendación con ICP visible, estado y timestamps editoriales
+- **Validations:** evento y mercado `normalized`, mercado perteneciente al evento, odds `>1`, score integer `0..100`, factors array no vacío de máximo 20 strings no vacíos
+- **Lifecycle:** `draft -> published -> inactive` o `draft -> inactive`; `inactive` es terminal, no se reactiva, no admite follow y no se elimina físicamente
+- **Límite:** ICP es explicativo; nunca participa en ranking u orden del feed
 
 ## FR-023: El sistema debe mostrar feed filtrable por tipo
 
 - **Relacionado a:** EPIC-SL-06, US 6.2
-- **Input:** filter (pre|live), sport, league
-- **Processing:** consultar feed y ordenar por fecha
-- **Output:** lista de recomendaciones
-- **Validations:** filtros validos
+- **Input:** filtros opcionales `type=pre|live`, `sport`, `leagueId`; `cursor` opaco; `limit` default 20, máximo 50
+- **Processing:** devolver exclusivamente `status=published`, ordenar por `published_at DESC,id DESC` y continuar desde cursor con la misma clave compuesta
+- **Output:** lista con ICP visible y `nextCursor` nullable
+- **Validations:** filtros estrictos; `leagueId` UUID; cursor inválido responde validación; cambiar filtros reinicia cursor
+- **Límite:** no hay personalización, proveedor, scraping ni ranking por ICP
 
 ## FR-024: El sistema debe permitir adhesion de recomendacion
 
 - **Relacionado a:** EPIC-SL-06, US 6.3
-- **Input:** recommendation_id, bank_id
-- **Processing:** precargar formulario con datos del evento
-- **Output:** payload de apuesta prellenado
-- **Validations:** recomendacion activa
+- **Input:** `recommendationId`, `bankId` obligatorio
+- **Processing:** cookie BFF valida recommendation `published` y bank propio; RPC `SECURITY INVOKER` exclusiva de `service_role` persiste follow único por `(user_id,recommendation_id)`; replay con mismo bank devuelve el follow y otro bank responde `409` sin reemplazo
+- **Output:** follow persistido y prefill compatible con SL-12: bank, leg normalizada, selection, odds y ticket odds; creación devuelve `201` y replay con mismo bank devuelve `200` con la misma identidad
+- **Validations:** bank existente y propio; evento/mercado normalizados completos; draft/inactive no admite follow
+- **Límite:** nunca crea bet, reserva funding, mueve saldo ni escribe ledger; el usuario revisa y confirma luego mediante `POST /api/bets`
 
 ## FR-025: El sistema debe mostrar metricas basicas de rendimiento
 
 - **Relacionado a:** EPIC-SL-06, US 6.4
-- **Input:** bank_id, date_range
-- **Processing:** calcular yield cash, yield operativo, win rate
-- **Output:** resumen de metricas
-- **Validations:** date_range valido
+- **Input:** `bankId`, `from`, `to` como fechas UTC inclusivas
+- **Processing:** cookie BFF invoca RPC `SECURITY INVOKER` exclusiva de `service_role`; incluye solo bets propias del bank con `status=settled` y `settled_at` dentro del rango
+- **Output:** `yieldCash`, `yieldOperative`, `winRate`, contadores, stake/beneficio agregados y rango efectivo
+- **Cash yield:** `sum(cash component profit) / sum(cash-funded stake)`
+- **Operative yield:** `sum(profit_amount) / sum(stake_amount)`
+- **Weighted win rate:** `(won * 1 + half_won * 0.5) / count(won|lost|half_won|half_lost)`; `void` no es decisivo y cashout queda excluido
+- **Validations:** bank obligatorio, existente y propio; `from <= to`; rango máximo 366 días; denominador cero devuelve `0`

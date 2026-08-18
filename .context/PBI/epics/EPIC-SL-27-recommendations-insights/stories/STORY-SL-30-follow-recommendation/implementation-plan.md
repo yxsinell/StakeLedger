@@ -1,94 +1,43 @@
-# Implementation Plan: STORY-SL-30 - Seguir recomendacion
+# Implementation Plan - SL-30
+
+**Estado:** Implementado y verificado en Fase 4J
 
 ## Fuentes
 
-- Story: `story.md`
-- Acceptance test plan: `acceptance-test-plan.md`
-- Roadmap Fase 2A: `.context/dev-roadmap.md`
-- Gap analysis Fase 2A: `.context/reports/phase-2a-gap-analysis.md`
-- SRS: `.context/SRS/functional-specs.md` FR-024
-- API contract: `.context/SRS/api-contracts.yaml` `/api/recommendations/{recommendationId}/follow`
+- `story.md`, `acceptance-test-plan.md`
+- `.context/SRS/functional-specs.md` FR-024
+- `.context/SRS/api-contracts.yaml`
 
-## Estado Actual Verificado
+## Baseline Verificado
 
-- No existe endpoint follow.
-- Dashboard tiene boton `Seguir` hardcodeado sin accion real.
-- No existe `recommendation_follows` ni tabla equivalente.
-- No existe bet prefill state ni flujo real desde recommendation hacia create bet.
+- Tabla remota `recommendation_follows`, RPC, endpoint y UI follow están implementados y endurecidos.
+- Flujo de creación SL-12 existe y debe permanecer única vía de creación de tickets.
 
-## Dependencias
+## Implementación Completada
 
-- Depende de Identity para usuario autenticado.
-- Depende de Banks SL-7/SL-8 para seleccionar bank; usuario sin bank debe bloquear.
-- Depende de Bets SL-12 para formulario de ticket/prefill.
-- Depende de SL-28/SL-29 para recommendation activa publicada.
-- Depende de Catalog para datos normalizados completos.
+1. Follow exige `bank_id`, FK/ownership y unique `(user_id,recommendation_id)`.
+2. RPC `follow_recommendation` es `SECURITY INVOKER`, `search_path=''`, exclusiva de `service_role` e idempotente; devuelve `created=true|false` para que el BFF responda `201` al crear y `200` al repetir.
+3. Published/normalización/inactive se validan sin borrar históricos; `authenticated` carece de DML directo y conserva SELECT RLS propio.
+4. Cookie BFF, prefill SL-12, CTA, selector de bank y navegación al formulario están implementados sin operación financiera implícita.
 
-## Alcance
+## Invariantes
 
-- Permitir que usuario siga recommendation activa.
-- Devolver payload de prefill para formulario de bet con evento, mercado y odds.
-- Exigir bank existente o solicitar crear uno.
-- No registrar bet automaticamente sin confirmacion.
+- Follow no llama `create_bet_with_funding`.
+- Follow no inserta bets, legs, funding o transactions ni cambia pockets.
+- Replay con mismo bank conserva y devuelve el follow; otro bank propio responde `409` y no reemplaza el primero.
+- Bank ajeno/inexistente produce `404` genérico.
 
-## Archivos a Tocar
+## Archivos Implementados
 
-- `src/app/api/recommendations/[recommendationId]/follow/route.ts` - follow/prefill endpoint.
-- `src/lib/recommendations/follow-service.ts` - validation y prefill mapping.
-- `src/lib/recommendations/schemas.ts` - follow request/response.
-- `src/components/recommendations/follow-button.tsx` - CTA.
-- `src/components/bets/bet-ticket-form.tsx` - aceptar prefill.
-- `src/app/dashboard/recommendations/[recommendationId]/follow/page.tsx` o route state - flujo UI.
-- `src/lib/openapi/schemas/recommendations.ts` - prefill response.
+- `supabase/migrations/20260817183033_implement_recommendations_and_metrics.sql`
+- `supabase/migrations/20260817183135_harden_recommendation_views.sql`
+- `supabase/migrations/20260817194604_add_follow_creation_status.sql`
+- `src/lib/recommendations/{follow-service,schemas}.ts`
+- `src/app/api/recommendations/[recommendationId]/follow/route.ts`
+- `src/components/recommendations/follow-button.tsx`
+- Adaptación explícita del formulario SL-12 para prefill cliente.
 
-## DB/RLS Necesarios
+## Verificación Final
 
-- Migration-first: requiere `recommendation_follows` si se registra adhesion/trazabilidad.
-- Requiere `recommendations.status`, normalized event fields y FK a event/market.
-- Requiere asociar follow a `user_id`, `recommendation_id`, `bank_id?`, `created_at`.
-- RLS: usuario solo lee/crea follows propios; recommendations inactivas no se pueden seguir.
-- Si follow solo devuelve prefill sin persistir, documentar decision y no crear tabla.
-
-## API Necesaria
-
-- `POST /api/recommendations/{recommendationId}/follow` con `{ bankId? }` segun OpenAPI.
-- Success: `200` con `PrefillBetResponse` y datos para SL-12.
-- Errors: `400` datos incompletos/bank invalido, `403` bank ajeno, `404`, `409/422` recommendation inactiva o usuario sin bank.
-
-## UI Necesaria
-
-- Follow button en feed/card.
-- Si usuario tiene multiples banks, selector antes de prefill o dentro del bet form.
-- Si usuario no tiene banks, CTA a crear bank.
-- `data-testid`: `followRecommendationButton`, `follow_bank_select`, `recommendation_inactive_message`, `create_bank_required_message`, `prefilledBetForm`.
-
-## Validaciones Zod
-
-- `recommendationId`: UUID.
-- `bankId`: optional UUID; requerido si no hay default bank.
-- Recommendation status debe ser `published/active`.
-- Prefill requiere event, market, odds y normalized data completos.
-
-## Tests Minimos
-
-- Unit: recommendation active/inactive y data completeness.
-- API: follow activo devuelve prefill correcto.
-- API: recommendation inactiva no prefill.
-- API: usuario sin bank recibe bloqueo accionable.
-- API/RLS: bank ajeno no permitido.
-- E2E: feed -> follow -> bet form prefilled, sin auto-create.
-
-## Criterios de Cierre
-
-- AC SL-30 cubiertos: prefill exitoso, inactiva, usuario sin bank.
-- No se crea bet sin confirmacion explicita del usuario.
-- Follow queda trazable o decision no-persist queda documentada.
-- Supabase types actualizados si cambia schema.
-- `bun run repo:check` pasa.
-
-## Decisiones Abiertas
-
-- Campos exactos de prefill.
-- Default bank vs selector obligatorio para multiples banks.
-- Persistir follow o solo generar prefill.
-- Mensajes/codigos para recommendation inactiva.
+- Unit, SQL rollback, DB/RLS, OpenAPI, repo checks y E2E específico 4J pasan; bets no aumentan y residuo 4J queda en cero.
+- Los 10 casos ATP no se ejecutaron manualmente uno a uno; gaps de follow E2E real/concurrencia constan en el reporte final.
