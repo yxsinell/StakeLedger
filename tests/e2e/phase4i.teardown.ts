@@ -29,7 +29,7 @@ export async function cleanupPhase4iState(supabase: SupabaseClient, state: Phase
       const { data: bets, error: betsError } = await supabase.from('bets').select('id').in('bank_id', bankIds);
       if (betsError) { throw betsError; }
       const betIds = bets.map(bet => bet.id);
-      for (const table of ['settlement_idempotencies', 'cashout_idempotencies', 'bet_idempotencies'] as const) {
+      for (const table of ['settlement_idempotencies', 'cashout_idempotencies', 'bet_idempotencies', 'transaction_idempotencies'] as const) {
         const { error } = await supabase.from(table).delete().eq('user_id', userId); if (error) { throw error; }
       }
       if (betIds.length) {

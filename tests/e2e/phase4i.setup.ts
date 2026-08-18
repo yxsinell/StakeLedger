@@ -73,6 +73,8 @@ export default async function setup() {
     const concurrencyBankId = crypto.randomUUID();
     const secondaryBankId = crypto.randomUUID();
     const metricsBankId = crypto.randomUUID();
+    const ledgerSourceBankId = crypto.randomUUID();
+    const ledgerDestinationBankId = crypto.randomUUID();
     const goalBankName = `Goal bank ${suffix}`;
     const metricsBankName = `Metrics bank ${suffix}`;
     const { error: bankError } = await supabase.from('banks').insert([
@@ -81,11 +83,13 @@ export default async function setup() {
       { id: concurrencyBankId, user_id: primary.user.id, name: `Concurrency bank ${suffix}`, currency: 'EUR' },
       { id: secondaryBankId, user_id: secondary.user.id, name: `Secondary bank ${suffix}`, currency: 'EUR' },
       { id: metricsBankId, user_id: primary.user.id, name: metricsBankName, currency: 'EUR' },
+      { id: ledgerSourceBankId, user_id: primary.user.id, name: `Ledger source ${suffix}`, currency: 'EUR' },
+      { id: ledgerDestinationBankId, user_id: primary.user.id, name: `Ledger destination ${suffix}`, currency: 'EUR' },
     ]);
     if (bankError) { throw bankError; }
     const { error: pocketsError } = await supabase.from('bank_pockets').insert([
-      ...[settlementBankId, goalBankId, concurrencyBankId, secondaryBankId, metricsBankId].flatMap(bankId => [
-        { bank_id: bankId, pocket_type: 'cash', balance: bankId === settlementBankId ? 80 : 100 },
+      ...[settlementBankId, goalBankId, concurrencyBankId, secondaryBankId, metricsBankId, ledgerSourceBankId, ledgerDestinationBankId].flatMap(bankId => [
+        { bank_id: bankId, pocket_type: 'cash', balance: bankId === settlementBankId ? 80 : bankId === ledgerDestinationBankId ? 0 : 100 },
         { bank_id: bankId, pocket_type: 'bonus', balance: 0 },
         { bank_id: bankId, pocket_type: 'freebet', balance: 0 },
       ]),
@@ -202,6 +206,8 @@ export default async function setup() {
       metricsBetId,
       metricsBankId,
       metricsBankName,
+      ledgerSourceBankId,
+      ledgerDestinationBankId,
       metricsDate: fixtureNow.toISOString().slice(0, 10),
       goalBankId,
       goalBankName,

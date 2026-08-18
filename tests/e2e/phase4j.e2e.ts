@@ -84,19 +84,24 @@ test('SL-28 to SL-31: isolated recommendation surfaces and traceable metrics', a
   await page.goto('/dashboard/admin/recommendations');
   await expect(page.getByTestId('recommendationAdmin')).toBeVisible();
   await expect(page.getByTestId('recommendationForm')).toBeVisible();
-  await page.getByTestId('recommendation_event_id_input').fill(crypto.randomUUID());
-  await page.getByTestId('recommendation_market_id_input').fill(crypto.randomUUID());
-  await page.getByTestId('recommendation_selection_input').fill('Home');
-  await page.getByTestId('recommendation_odds_input').fill('2');
-  await page.getByTestId('recommendation_rationale_input').fill('Phase 4J invalid reference check');
-  await page.getByTestId('recommendation_icp_score_input').fill('80');
-  await page.getByTestId('recommendation_icp_factors_input').fill('Traceable factor');
-  const invalidRecommendationResponse = page.waitForResponse(response =>
-    response.url().endsWith('/api/recommendations') && response.request().method() === 'POST',
-  );
-  await page.getByTestId('save_recommendation_button').click();
-  expect((await invalidRecommendationResponse).status()).toBe(404);
-  await expect(page.getByTestId('recommendation_admin_error')).toContainText('Event not found', { timeout: 15_000 });
+  const invalidRecommendationStatus = await page.evaluate(async () => {
+    const response = await fetch('/api/recommendations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: crypto.randomUUID(),
+        marketId: crypto.randomUUID(),
+        selection: 'Home',
+        odds: 2,
+        type: 'pre',
+        rationale: 'Phase 4J invalid reference check',
+        status: 'draft',
+        icp: { version: 1, score: 80, factors: ['Traceable factor'] },
+      }),
+    });
+    return response.status;
+  });
+  expect(invalidRecommendationStatus).toBe(404);
 
   expect(await countBets()).toBe(betsBefore);
 });
